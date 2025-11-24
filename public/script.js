@@ -1,4 +1,7 @@
-const API_URL = 'http://localhost:3000/api';
+// IMPORTANTE: Mudamos para '/api' (caminho relativo)
+// Assim o site sabe que deve chamar o backend dele mesmo, onde quer que esteja hospedado.
+const API_URL = '/api';
+
 let isRegistering = false;
 let token = localStorage.getItem('token');
 let currentUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -59,7 +62,7 @@ formAuth.addEventListener('submit', async (e) => {
             } else {
                 alert(data.error);
             }
-        } catch (err) { alert("Erro ao registrar"); }
+        } catch (err) { alert("Erro ao registrar: Verifique sua conexão"); }
 
     } else {
         // LOGIN
@@ -80,7 +83,10 @@ formAuth.addEventListener('submit', async (e) => {
             } else {
                 alert(data.error);
             }
-        } catch (err) { alert("Erro de conexão"); }
+        } catch (err) { 
+            console.error(err);
+            alert("Erro de conexão com o servidor"); 
+        }
     }
 });
 
@@ -105,7 +111,6 @@ function mostrarApp() {
     document.getElementById('userDisplay').innerText = currentUser.nome;
     document.getElementById('roleDisplay').innerText = currentUser.cargo.toUpperCase();
 
-    // Botão Admin Panel só aparece para o Admin
     if (currentUser.cargo === 'admin') {
         const btnAdmin = document.getElementById('btnAdminPanel');
         btnAdmin.classList.remove('hidden');
@@ -144,9 +149,6 @@ async function carregarItens(termo = '') {
     const itens = await res.json();
 
     itens.forEach(item => {
-        // Lógica de Permissão:
-        // Admin, Professor e Coordenador podem remover itens e diminuir estoque.
-        // Aluno só pode adicionar (+).
         const ehAdminOuStaff = ['admin', 'professor', 'coordenador'].includes(currentUser.cargo);
         
         const tr = document.createElement('tr');
