@@ -7,7 +7,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-const JWT_SECRET = 'segredo_super_secreto_do_laboratorio'; // Em produção, use variável de ambiente
+// Ajuste para produção: Usa variável de ambiente ou o valor padrão local
+const JWT_SECRET = process.env.JWT_SECRET || 'segredo_super_secreto_do_laboratorio'; 
 
 // --- CONFIGURAÇÕES ---
 app.use(cors());
@@ -15,7 +16,12 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- BANCO DE DADOS ---
-mongoose.connect('mongodb://127.0.0.1:27017/laboratorioDB')
+// ATUALIZAÇÃO PARA HOSPEDAGEM:
+// Tenta usar o endereço do banco da nuvem (process.env.MONGO_URI).
+// Se não existir (rodando no seu PC), usa o banco local.
+const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/laboratorioDB';
+
+mongoose.connect(mongoURI)
     .then(() => {
         console.log("✅ MongoDB Conectado!");
         criarAdminPadrao(); // Cria o admin ao iniciar se não existir
@@ -214,7 +220,9 @@ async function criarAdminPadrao() {
     }
 }
 
-const PORT = 3000;
+// ATUALIZAÇÃO PARA HOSPEDAGEM:
+// O Render fornece a porta na variável process.env.PORT. Se não, usa 3000.
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+    console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
