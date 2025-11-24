@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Lab Robótica</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+
+    <!-- TELA DE LOGIN / REGISTRO -->
+    <div id="auth-screen" class="auth-container">
+        <div class="card auth-card">
+            <h2 id="auth-title">Login</h2>
+            
+            <form id="authForm">
+                <input type="text" id="authNome" placeholder="Nome Completo" required>
+                
+                <!-- Campos extras de registro -->
+                <div id="registerFields" class="hidden">
+                    <input type="date" id="authNasc">
+                    <select id="authCargo">
+                        <option value="aluno">Aluno (Acesso Imediato)</option>
+                        <option value="professor">Professor (Requer Aprovação)</option>
+                        <option value="coordenador">Coordenador (Requer Aprovação)</option>
+                    </select>
+                </div>
+
+                <input type="password" id="authSenha" placeholder="Senha" required>
+                
+                <button type="submit" id="btnAuthAction" class="btn-primary">Entrar</button>
+            </form>
+
+            <p class="toggle-text">
+                <span id="toggleMsg">Não tem conta?</span> 
+                <a href="#" id="toggleAuth">Criar conta</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- TELA PRINCIPAL (INVENTÁRIO) -->
+    <div id="app-screen" class="hidden main-container">
+        <header>
+            <div class="header-content">
+                <h1><span class="material-icons">precision_manufacturing</span> Lab Robótica</h1>
+                <div class="user-info">
+                    Olá, <span id="userDisplay">Usuário</span> (<span id="roleDisplay">Aluno</span>)
+                    <button id="btnAdminPanel" class="btn-warning hidden">Painel Admin</button>
+                    <button onclick="logout()" class="btn-logout">Sair</button>
+                </div>
+            </div>
+        </header>
+
+        <section class="card form-section">
+            <h3>Novo Item</h3>
+            <form id="formItem">
+                <div class="grid-form">
+                    <input type="text" id="nome" placeholder="Nome do Item" required>
+                    <input type="text" id="especificacao" placeholder="Especificação">
+                    <input type="text" id="localizacao" placeholder="Localização" required>
+                    <input type="number" id="quantidade" value="1" min="0" required class="input-small">
+                </div>
+                <button type="submit" class="btn-primary">Registrar Item</button>
+            </form>
+        </section>
+
+        <section class="list-section">
+            <div class="search-bar">
+                <span class="material-icons search-icon">search</span>
+                <input type="text" id="busca" placeholder="Pesquisar...">
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Local</th>
+                            <th class="text-center">Estoque</th>
+                            <th class="text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaItens"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- PAINEL DO ADMINISTRADOR (APROVAÇÃO) -->
+    <div id="admin-screen" class="hidden main-container">
+        <header>
+            <div class="header-content">
+                <h1><span class="material-icons">admin_panel_settings</span> Painel Admin</h1>
+                <button onclick="voltarAoApp()" class="btn-primary">Voltar ao Inventário</button>
+            </div>
+        </header>
+
+        <section class="card">
+            <h3>Gerenciar Usuários</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Cargo</th>
+                            <th>Status</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaUsers"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
