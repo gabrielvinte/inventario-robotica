@@ -3,21 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Lab Robótica</title>
+    <title>LabCore - Gestão de Laboratório</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2196f3">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
 
-    <!-- TELA DE LOGIN / REGISTRO -->
+    <!-- TELA DE LOGIN -->
     <div id="auth-screen" class="auth-container">
         <div class="card auth-card">
-            <h2 id="auth-title">Login</h2>
-            
+            <h2 id="auth-title">Login - LabCore</h2>
             <form id="authForm">
                 <input type="text" id="authNome" placeholder="Nome Completo" required>
-                
-                <!-- Campos extras de registro -->
                 <div id="registerFields" class="hidden">
                     <input type="date" id="authNasc">
                     <select id="authCargo">
@@ -26,12 +25,9 @@
                         <option value="coordenador">Coordenador (Requer Aprovação)</option>
                     </select>
                 </div>
-
                 <input type="password" id="authSenha" placeholder="Senha" required>
-                
                 <button type="submit" id="btnAuthAction" class="btn-primary">Entrar</button>
             </form>
-
             <p class="toggle-text">
                 <span id="toggleMsg">Não tem conta?</span> 
                 <a href="#" id="toggleAuth">Criar conta</a>
@@ -39,77 +35,118 @@
         </div>
     </div>
 
-    <!-- TELA PRINCIPAL (INVENTÁRIO) -->
+    <!-- TELA PRINCIPAL -->
     <div id="app-screen" class="hidden main-container">
         <header>
             <div class="header-content">
-                <h1><span class="material-icons">precision_manufacturing</span> Lab Robótica</h1>
+                <h1><span class="material-icons">smart_toy</span> LabCore</h1>
                 <div class="user-info">
-                    Olá, <span id="userDisplay">Usuário</span> (<span id="roleDisplay">Aluno</span>)
-                    <button id="btnAdminPanel" class="btn-warning hidden">Painel Admin</button>
+                    <span id="userDisplay">Usuário</span> (<span id="roleDisplay">Cargo</span>)
+                    <button id="btnAdminPanel" class="btn-warning hidden">Gestão de Usuários</button>
                     <button onclick="logout()" class="btn-logout">Sair</button>
                 </div>
             </div>
+            <nav class="nav-tabs">
+                <button onclick="mudarAba('estoque')" class="tab-btn active" id="tab-estoque">📦 Estoque</button>
+                <button onclick="mudarAba('kits')" class="tab-btn" id="tab-kits">🧰 Kits & Requisições</button>
+            </nav>
         </header>
 
-        <section class="card form-section">
-            <h3>Novo Item</h3>
-            <form id="formItem">
-                <div class="grid-form">
-                    <input type="text" id="nome" placeholder="Nome do Item" required>
-                    <input type="text" id="especificacao" placeholder="Especificação">
-                    <input type="text" id="localizacao" placeholder="Localização" required>
-                    <input type="number" id="quantidade" value="1" min="0" required class="input-small">
-                </div>
-                <button type="submit" class="btn-primary">Registrar Item</button>
-            </form>
-        </section>
+        <!-- ABA ESTOQUE -->
+        <div id="view-estoque">
+            <section class="card form-section">
+                <h3>Registrar Entrada de Item</h3>
+                <form id="formItem">
+                    <div class="grid-form">
+                        <div class="input-group">
+                            <label>Material</label>
+                            <select id="nome" required class="select-material-global">
+                                <option value="">Carregando...</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Especificação</label>
+                            <input type="text" id="especificacao" placeholder="Ex: SMD, Original">
+                        </div>
+                        <div class="input-group">
+                            <label>Localização</label>
+                            <input type="text" id="localizacao" placeholder="Ex: Gaveta 2" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Qtd</label>
+                            <input type="number" id="quantidade" value="1" min="1" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary">Adicionar ao Estoque</button>
+                </form>
+            </section>
 
-        <section class="list-section">
-            <div class="search-bar">
-                <span class="material-icons search-icon">search</span>
-                <input type="text" id="busca" placeholder="Pesquisar...">
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Local</th>
-                            <th class="text-center">Estoque</th>
-                            <th class="text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaItens"></tbody>
-                </table>
-            </div>
-        </section>
+            <!-- Seção de Gerenciar Lista (Sem botão de add, apenas lista) -->
+            <section id="manageMaterialsSection" class="card hidden">
+                <h3>⚙️ Lista de Materiais Cadastrados</h3>
+                <p style="color:#888; font-size:0.9rem;">Clique no 'X' para remover tipos de materiais.</p>
+                <div id="listaMateriaisTags" class="tags-container" style="margin-top:10px;"></div>
+            </section>
+
+            <section class="list-section">
+                <div class="search-bar">
+                    <span class="material-icons search-icon">search</span>
+                    <input type="text" id="busca" placeholder="Pesquisar no estoque...">
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Item</th><th>Local</th><th class="text-center">Estoque</th><th class="text-right">Ações</th></tr></thead>
+                        <tbody id="tabelaItens"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ABA KITS -->
+        <div id="view-kits" class="hidden">
+            <section id="painelSolicitacoes" class="card hidden">
+                <h3 style="color:#ff9800">⚠️ Painel de Solicitações</h3>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Aluno</th><th>Kit</th><th>Retirada</th><th>Status</th><th>Ações</th></tr></thead>
+                        <tbody id="tabelaSolicitacoes"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="criarKitSection" class="card hidden">
+                <h3>🛠️ Criar Novo Kit</h3>
+                <div class="grid-form">
+                    <input type="text" id="kitNome" placeholder="Nome do Kit (Ex: Kit Arduino Básico)">
+                    <input type="text" id="kitLocal" placeholder="Localização do Kit">
+                </div>
+                <div style="background:#2c2c2c; padding:10px; margin:10px 0; border-radius:5px;">
+                    <h4>Conteúdo do Kit:</h4>
+                    <div style="display:flex; gap:10px;">
+                        <select id="kitMaterialSelect" class="select-material-global"></select>
+                        <input type="number" id="kitMaterialQtd" value="1" min="1" style="width:80px">
+                        <button onclick="adicionarItemAoKit()" class="btn-primary" style="width:auto;">Add Item</button>
+                    </div>
+                    <ul id="listaItensKitPreview" style="margin-top:10px; list-style:none; padding:0;"></ul>
+                </div>
+                <button onclick="salvarKit()" class="btn-primary">Salvar Kit</button>
+            </section>
+
+            <section class="list-section">
+                <h3>🧰 Kits Disponíveis</h3>
+                <div id="listaKits" class="cards-grid"></div>
+            </section>
+        </div>
     </div>
 
-    <!-- PAINEL DO ADMINISTRADOR (APROVAÇÃO) -->
+    <!-- PAINEL USUÁRIOS -->
     <div id="admin-screen" class="hidden main-container">
         <header>
-            <div class="header-content">
-                <h1><span class="material-icons">admin_panel_settings</span> Painel Admin</h1>
-                <button onclick="voltarAoApp()" class="btn-primary">Voltar ao Inventário</button>
-            </div>
+            <div class="header-content"><h1>Gestão de Usuários</h1><button onclick="voltarAoApp()" class="btn-primary">Voltar</button></div>
         </header>
-
         <section class="card">
-            <h3>Gerenciar Usuários</h3>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>Cargo</th>
-                            <th>Status</th>
-                            <th>Ação</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaUsers"></tbody>
-                </table>
-            </div>
+            <h3>Aprovar Usuários</h3>
+            <div class="table-container"><table id="tabelaUsers"></table></div>
         </section>
     </div>
 
