@@ -90,10 +90,13 @@ function mostrarApp() {
 
     const ehStaff = ['admin', 'professor', 'coordenador'].includes(currentUser.cargo);
     
+    // Controle de visibilidade das seções baseado no cargo
     if (ehStaff) {
         document.getElementById('manageMaterialsSection').classList.remove('hidden');
         document.getElementById('painelSolicitacoes').classList.remove('hidden');
         document.getElementById('criarKitSection').classList.remove('hidden');
+        
+        // Botão de admin aparece para staff (para aprovação)
         document.getElementById('btnAdminPanel').classList.remove('hidden');
         document.getElementById('btnAdminPanel').onclick = mostrarAdminPanel;
     } else {
@@ -133,14 +136,17 @@ async function authFetch(url, options = {}) {
     return fetch(url, options);
 }
 
-// --- MATERIAIS ---
+// --- GESTÃO DE MATERIAIS (AQUI ESTÁ A LÓGICA DO BOTÃO) ---
+
 async function carregarMateriaisCombo() {
     const res = await authFetch(`${API_URL}/materiais`);
     if(res.ok) {
         const materiais = await res.json();
-        const selects = document.querySelectorAll('.select-material-global');
         
+        // Atualiza todos os selects de materiais na página
+        const selects = document.querySelectorAll('.select-material-global');
         selects.forEach(sel => {
+            const valorAtual = sel.value; // Salva seleção atual
             sel.innerHTML = '<option value="">Selecione um material...</option>';
             materiais.forEach(m => {
                 const opt = document.createElement('option');
@@ -148,6 +154,7 @@ async function carregarMateriaisCombo() {
                 opt.innerText = m.nome;
                 sel.appendChild(opt);
             });
+            if(valorAtual) sel.value = valorAtual; // Restaura seleção
         });
 
         const ehStaff = ['admin', 'professor', 'coordenador'].includes(currentUser.cargo);
@@ -157,16 +164,47 @@ async function carregarMateriaisCombo() {
 
 function renderizarListaGerenciamento(materiais) {
     const container = document.getElementById('listaMateriaisTags');
+    if(!container) return;
     container.innerHTML = '';
     materiais.forEach(m => {
         container.innerHTML += `<div class="material-tag">${m.nome} <span onclick="removerMaterialLista('${m._id}')" class="material-icons remove-tag">close</span></div>`;
     });
 }
-async function removerMaterialLista(id) {
-    if(confirm("Remover da lista de materiais?")) { await authFetch(`${API_URL}/materiais/${id}`, { method: 'DELETE' }); carregarMateriaisCombo(); }
+
+// ESTA FUNÇÃO É CHAMADA PELO BOTÃO "ADICIONAR"
+async function adicionarMaterialLista() {
+    const input = document.getElementById('novoMaterialNome');
+    const nome = input.value.trim();
+    
+    if(!nome) return alert("Por favor, digite o nome do material.");
+
+    try {
+        const res = await authFetch(`${API_URL}/materiais`, {
+            method: 'POST',
+            body: JSON.stringify({ nome })
+        });
+
+        if(res.ok) {
+            alert("✅ Material adicionado à lista com sucesso!");
+            input.value = ''; // Limpa o campo
+            carregarMateriaisCombo(); // Atualiza a lista visual e os selects
+        } else {
+            alert("❌ Erro: Este material provavelmente já existe na lista.");
+        }
+    } catch (e) {
+        alert("❌ Erro de conexão ao adicionar material.");
+    }
 }
 
-// --- ESTOQUE ---
+async function removerMaterialLista(id) {
+    if(confirm("Tem certeza que deseja remover este material da lista de opções?")) {
+        await authFetch(`${API_URL}/materiais/${id}`, { method: 'DELETE' });
+        carregarMateriaisCombo();
+    }
+}
+
+// --- ESTOQUE (INVENTÁRIO) ---
+
 async function carregarItens(termo = '') {
     const tabela = document.getElementById('tabelaItens');
     tabela.innerHTML = '';
@@ -192,13 +230,17 @@ async function carregarItens(termo = '') {
 
 document.getElementById('formItem').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const select = document.getElementById('nome');
     const item = {
-        nome: document.getElementById('nome').value,
+        nome: select.value, // Pega valor do Select
         especificacao: document.getElementById('especificacao').value,
         localizacao: document.getElementById('localizacao').value,
         quantidade: document.getElementById('quantidade').value,
         criadoPor: currentUser.nome
     };
+
+    if(!item.nome) return alert("Selecione um material da lista!");
+
     await authFetch(`${API_URL}/itens`, { method: 'POST', body: JSON.stringify(item) });
     document.getElementById('formItem').reset();
     carregarItens();
@@ -210,14 +252,15 @@ async function alterarQtd(id, novaQtd) {
     carregarItens(document.getElementById('busca').value);
 }
 async function deletarItem(id) {
-    if (confirm("Remover?")) { await authFetch(`${API_URL}/itens/${id}`, { method: 'DELETE' }); carregarItens(); }
+    if (confirm("Remover item do estoque?")) { await authFetch(`${API_URL}/itens/${id}`, { method: 'DELETE' }); carregarItens(); }
 }
 document.getElementById('busca').addEventListener('input', (e) => carregarItens(e.target.value));
 
-// --- KITS ---
+// --- KITS (CORREÇÃO BUG CARREGAMENTO) ---
 
 function adicionarItemAoKit() {
-    const material = document.getElementById('kitMaterialSelect').value;
+    const select = document.getElementById('kitMaterialSelect');
+    const material = select.value;
     const qtd = document.getElementById('kitMaterialQtd').value;
     if(!material) return alert("Selecione um material");
     
@@ -236,7 +279,7 @@ function renderizarPreviewKit() {
 async function salvarKit() {
     const nome = document.getElementById('kitNome').value;
     const local = document.getElementById('kitLocal').value;
-    if(!nome || !local || itensKitTemporario.length === 0) return alert("Preencha nome, local e adicione itens.");
+    if(!nome || !local || itensKitTemporario.length === 0) return alert("Preencha nome, local e adicione itens ao kit.");
 
     try {
         const res = await authFetch(`${API_URL}/kits`, {
@@ -245,7 +288,7 @@ async function salvarKit() {
         });
 
         if (res.ok) {
-            alert("Kit criado com sucesso!");
+            alert("✅ Kit criado com sucesso!");
             itensKitTemporario = [];
             document.getElementById('kitNome').value = '';
             document.getElementById('kitLocal').value = '';
@@ -263,6 +306,7 @@ async function salvarKit() {
 
 async function carregarKits() {
     const div = document.getElementById('listaKits');
+    if(!div) return;
     div.innerHTML = 'Carregando...';
     const res = await authFetch(`${API_URL}/kits`);
     const kits = await res.json();
@@ -287,24 +331,26 @@ async function carregarKits() {
 }
 
 async function deletarKit(id) {
-    if(confirm("Apagar este kit?")) { await authFetch(`${API_URL}/kits/${id}`, { method: 'DELETE' }); carregarKits(); }
+    if(confirm("Apagar este kit permanentemente?")) { await authFetch(`${API_URL}/kits/${id}`, { method: 'DELETE' }); carregarKits(); }
 }
 
 async function solicitarKit(id, nome) {
-    const dias = prompt(`Quantos dias você precisa ficar com o kit "${nome}"?`, "1");
+    const dias = prompt(`Por quantos dias você vai usar o kit "${nome}"?`, "1");
     if(dias) {
         const res = await authFetch(`${API_URL}/solicitacoes`, {
             method: 'POST',
             body: JSON.stringify({ kitId: id, kitNome: nome, dias: dias })
         });
-        if(res.ok) alert("Solicitação enviada!");
-        else alert("Erro ao solicitar");
+        if(res.ok) alert("✅ Solicitação enviada! Veja o status no painel.");
+        else alert("Erro ao solicitar kit.");
     }
 }
 
 // --- SOLICITAÇÕES ---
+
 async function carregarSolicitacoes() {
     const tbody = document.getElementById('tabelaSolicitacoes');
+    if(!tbody) return;
     tbody.innerHTML = '';
     const res = await authFetch(`${API_URL}/solicitacoes`);
     const solicitacoes = await res.json();
@@ -335,7 +381,7 @@ async function renovarEmprestimo(id) {
     carregarSolicitacoes();
 }
 async function receberDevolucao(id) {
-    if(confirm("Confirmar devolução?")) {
+    if(confirm("Confirmar a devolução completa do kit?")) {
         await authFetch(`${API_URL}/solicitacoes/${id}/devolver`, { method: 'PATCH' });
         carregarSolicitacoes();
     }
@@ -344,6 +390,7 @@ async function receberDevolucao(id) {
 // --- ADMIN USERS ---
 async function carregarUsuariosAdmin() {
     const tabela = document.getElementById('tabelaUsers');
+    if(!tabela) return;
     tabela.innerHTML = 'Carregando...';
     const res = await authFetch(`${API_URL}/admin/users`);
     const users = await res.json();
@@ -357,4 +404,4 @@ async function carregarUsuariosAdmin() {
     tabela.innerHTML += '</tbody>';
 }
 async function aprovarUser(id) { await authFetch(`${API_URL}/admin/aprovar/${id}`, { method: 'PATCH' }); carregarUsuariosAdmin(); }
-async function removerUser(id) { if(confirm("Remover?")) { await authFetch(`${API_URL}/admin/user/${id}`, { method: 'DELETE' }); carregarUsuariosAdmin(); } }
+async function removerUser(id) { if(confirm("Remover usuário?")) { await authFetch(`${API_URL}/admin/user/${id}`, { method: 'DELETE' }); carregarUsuariosAdmin(); } }

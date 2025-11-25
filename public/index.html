@@ -81,17 +81,23 @@
                 </form>
             </section>
 
-            <!-- Seção de Gerenciar Lista (Sem botão de add, apenas lista) -->
+            <!-- Seção de Gerenciar Lista (Restaurada com Input) -->
             <section id="manageMaterialsSection" class="card hidden">
-                <h3>⚙️ Lista de Materiais Cadastrados</h3>
-                <p style="color:#888; font-size:0.9rem;">Clique no 'X' para remover tipos de materiais.</p>
-                <div id="listaMateriaisTags" class="tags-container" style="margin-top:10px;"></div>
+                <h3>Gerenciar Lista de Materiais</h3>
+                <p style="color:#888; font-size:0.9rem; margin-bottom: 10px;">Cadastre aqui os nomes dos materiais que aparecerão na lista de seleção.</p>
+                
+                <div class="manage-row">
+                    <input type="text" id="novoMaterialNome" placeholder="Nome do novo material (Ex: Sensor Ultrassônico)">
+                    <button onclick="adicionarMaterialLista()" class="btn-primary" style="width:auto;">Adicionar</button>
+                </div>
+                
+                <div id="listaMateriaisTags" class="tags-container"></div>
             </section>
 
             <section class="list-section">
                 <div class="search-bar">
-                    <span class="material-icons search-icon">search</span>
                     <input type="text" id="busca" placeholder="Pesquisar no estoque...">
+                    <span class="material-icons search-icon">search</span>
                 </div>
                 <div class="table-container">
                     <table>
@@ -105,7 +111,7 @@
         <!-- ABA KITS -->
         <div id="view-kits" class="hidden">
             <section id="painelSolicitacoes" class="card hidden">
-                <h3 style="color:#ff9800">⚠️ Painel de Solicitações</h3>
+                <h3 style="color:#ff9800">Painel de Solicitações</h3>
                 <div class="table-container">
                     <table>
                         <thead><tr><th>Aluno</th><th>Kit</th><th>Retirada</th><th>Status</th><th>Ações</th></tr></thead>
@@ -115,7 +121,7 @@
             </section>
 
             <section id="criarKitSection" class="card hidden">
-                <h3>🛠️ Criar Novo Kit</h3>
+                <h3>Criar Novo Kit</h3>
                 <div class="grid-form">
                     <input type="text" id="kitNome" placeholder="Nome do Kit (Ex: Kit Arduino Básico)">
                     <input type="text" id="kitLocal" placeholder="Localização do Kit">
