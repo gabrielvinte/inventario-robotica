@@ -95,15 +95,28 @@ const verificarToken = (req, res, next) => {
     const token = req.headers['authorization'];
     if (!token) return res.status(403).json({ error: "Token não fornecido" });
 
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    jwt.verify(token, JWT_SECRET, async (err, decoded) => {
         if (err) return res.status(401).json({ error: "Token inválido" });
-        req.userId = decoded.id;
-        req.userCargo = decoded.cargo;
-        req.userNome = decoded.nome;
-        next();
+
+        try {
+            // --- VERIFICAÇÃO ATIVA NO BANCO ---
+            const [rows] = await pool.query('SELECT aprovado FROM users WHERE id = ?', [decoded.id]);
+            const user = rows[0];
+
+            // Se o usuário não existir mais ou não estiver aprovado, bloqueia na hora
+            if (!user || !user.aprovado) {
+                return res.status(403).json({ error: "Acesso revogado ou usuário removido." });
+            }
+
+            req.userId = decoded.id;
+            req.userCargo = decoded.cargo;
+            req.userNome = decoded.nome;
+            next();
+        } catch (dbError) {
+            res.status(500).json({ error: "Erro na verificação de segurança." });
+        }
     });
 };
-
 const podeGerenciar = (req, res, next) => {
     if (['admin', 'coordenador', 'professor'].includes(req.userCargo)) next();
     else res.status(403).json({ error: "Permissão negada." });

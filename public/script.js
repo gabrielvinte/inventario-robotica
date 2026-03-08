@@ -197,7 +197,17 @@ async function authFetch(url, options = {}) {
     if (!options.headers) options.headers = {};
     options.headers['Authorization'] = token;
     options.headers['Content-Type'] = 'application/json';
-    return fetch(url, options);
+
+    const response = await fetch(url, options);
+
+    // Se o servidor disser que o acesso foi revogado (403 ou 401)
+    if (response.status === 401 || response.status === 403) {
+        alert("Sua sessão expirou ou seu acesso foi revogado.");
+        logout(); // Chama a função que limpa o localStorage e reseta a tela
+        return;
+    }
+
+    return response;
 }
 
 // --- GESTÃO DE MATERIAIS (AQUI ESTÁ A LÓGICA DO BOTÃO) ---
