@@ -1,4 +1,4 @@
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/cd0ce806-cdb5-498f-8b94-ab8846e85965" /># Sistema de Inventário - Laboratório de Robótica
+# Sistema de Inventário - Laboratório de Robótica
 
 Sistema Full Stack desenvolvido para gerenciar o estoque de componentes eletrônicos e ferramentas de um laboratório de robótica escolar.
 
