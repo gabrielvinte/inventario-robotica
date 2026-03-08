@@ -22,7 +22,7 @@
             <h2 id="auth-title">EXARIS</h2>
             <p class="subtitle">SYSTEM LOGIN</p>
             <form id="authForm">
-                <input type="text" id="authNome" placeholder="NOME DO OPERADOR" required>
+                <input type="text" id="authNome" placeholder="NOME DE USUÁRIO" required>
                 <div id="registerFields" class="hidden">
                     <input type="date" id="authNasc">
                     <select id="authCargo">
@@ -32,7 +32,7 @@
                     </select>
                 </div>
                 <div class="input-password-group">
-                    <input type="password" id="authSenha" placeholder="CÓDIGO DE ACESSO" required>
+                    <input type="password" id="authSenha" placeholder="SENHA" required>
                     <span class="material-icons" id="togglePasswordIcon">visibility_off</span>
                 </div>
                 <button type="submit" id="btnAuthAction" class="btn-primary">INICIAR SESSÃO</button>
@@ -131,7 +131,7 @@
                 <h3 class="highlight-text">MONITORAMENTO DE REQUISIÇÕES</h3>
                 <div class="table-container">
                     <table>
-                        <thead><tr><th>OPERADOR</th><th>MÓDULO</th><th>DATA SAÍDA</th><th>STATUS</th><th>AÇÕES</th></tr></thead>
+                        <thead><tr><th>OPERADOR</th><th>KIT</th><th>DATA SAÍDA</th><th>STATUS</th><th>AÇÕES</th></tr></thead>
                         <tbody id="tabelaSolicitacoes"></tbody>
                     </table>
                 </div>
@@ -152,7 +152,7 @@
                     </div>
                     <ul id="listaItensKitPreview" class="preview-list"></ul>
                 </div>
-                <button onclick="salvarKit()" class="btn-primary">CONSOLIDAR MÓDULO</button>
+                <button onclick="salvarKit()" class="btn-primary">CONSOLIDAR KIT</button>
             </section>
 
             <section class="list-section">

@@ -19,9 +19,20 @@ document.addEventListener('DOMContentLoaded', () => {
 document.getElementById('toggleAuth').addEventListener('click', (e) => {
     e.preventDefault();
     isRegistering = !isRegistering;
-    document.getElementById('auth-title').innerText = isRegistering ? "Criar Conta" : "Login";
-    document.getElementById('btnAuthAction').innerText = isRegistering ? "Cadastrar" : "Entrar";
-    document.getElementById('toggleMsg').innerText = isRegistering ? "Já tem conta?" : "Não tem conta?";
+    
+    // Atualiza Título e Botão Principal
+    document.getElementById('auth-title').innerText = isRegistering ? "CRIAR CONTA" : "EXARIS";
+    document.getElementById('btnAuthAction').innerText = isRegistering ? "CADASTRAR" : "INICIAR SESSÃO";
+    
+    // Atualiza a mensagem de alternância e o link
+    if (isRegistering) {
+        document.getElementById('toggleMsg').innerText = "JÁ POSSUI ACESSO?";
+        document.getElementById('toggleAuth').innerText = "FAZER LOGIN";
+    } else {
+        document.getElementById('toggleMsg').innerText = "ACESSO NÃO REGISTRADO?";
+        document.getElementById('toggleAuth').innerText = "SOLICITAR CREDENCIAIS";
+    }
+    
     document.getElementById('registerFields').classList.toggle('hidden');
 });
 
