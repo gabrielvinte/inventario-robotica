@@ -483,7 +483,7 @@ async function carregarKits() {
                 cardHTML += `
                     <div style="margin-top:10px; padding: 10px; background: ${corFundo}; border: 1px dashed ${corBorda}; border-radius: 4px;">
                         <p style="color: ${corBorda}; font-size: 0.85rem; margin-bottom: 5px;"><strong>${textoStatus}</strong></p>
-                        <p style="font-size: 0.8rem;"><strong>Por:</strong> ${kit.alugadoPor}</p>
+                        <p style="font-size: 0.8rem;"><strong>Alugado por:</strong> ${kit.alugadoPor}</p>
                     </div>
                 `;
                 if (ehStaff) {
