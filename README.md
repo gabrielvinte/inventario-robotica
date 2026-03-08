@@ -1,4 +1,4 @@
-# Sistema de Inventário - Laboratório de Robótica
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/cd0ce806-cdb5-498f-8b94-ab8846e85965" /># Sistema de Inventário - Laboratório de Robótica
 
 Sistema Full Stack desenvolvido para gerenciar o estoque de componentes eletrônicos e ferramentas de um laboratório de robótica escolar.
 
@@ -27,7 +27,7 @@ Sistema Full Stack desenvolvido para gerenciar o estoque de componentes eletrôn
 
 ### Banco de Dados
 
-![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white)
+![TiDB](https://img.shields.io/badge/TiDB-%23E6002D.svg?style=for-the-badge&logo=tidb&logoColor=white)
 
 ### Segurança & Autenticação
 
