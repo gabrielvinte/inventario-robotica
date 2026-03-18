@@ -690,55 +690,54 @@ async function renovarEmprestimo(id) {
 }
 
 // --- ADMIN USERS ---
-// --- ADMIN USERS ---
 async function carregarUsuariosAdmin() {
     const tabela = document.getElementById('tabelaUsers');
     if(!tabela) return;
     tabela.innerHTML = 'Carregando...';
     
-    const res = await authFetch(`${API_URL}/admin/users`);
-    const users = await res.json();
-    
-    tabela.innerHTML = '<thead><tr><th>Nome</th><th>Idade</th><th>Cargo</th><th>Status</th><th>Ação</th></tr></thead><tbody>';
-    
-    users.forEach(u => {
-        // --- NOVA TRAVA: Ignora alunos e admin ---
-        if (u.cargo === 'admin' || u.cargo === 'aluno') return; 
-
-        let textoIdade = "N/I"; 
+    try {
+        const res = await authFetch(`${API_URL}/admin/users`);
+        const users = await res.json();
         
-        if (u.nascimento) {
-            const dataNasc = new Date(u.nascimento.includes('T') ? u.nascimento : u.nascimento + 'T12:00:00');
-            const hoje = new Date();
+        tabela.innerHTML = '<thead><tr><th>Nome</th><th>Idade</th><th>Cargo</th><th>Status</th><th>Ação</th></tr></thead><tbody>';
+        
+        users.forEach(u => {
+            let textoIdade = "N/I"; 
             
-            let idade = hoje.getFullYear() - dataNasc.getFullYear();
-            const mes = hoje.getMonth() - dataNasc.getMonth();
-            
-            if (mes < 0 || (mes === 0 && hoje.getDate() < dataNasc.getDate())) {
-                idade--;
+            if (u.nascimento) {
+                const dataNasc = new Date(u.nascimento.includes('T') ? u.nascimento : u.nascimento + 'T12:00:00');
+                const hoje = new Date();
+                
+                let idade = hoje.getFullYear() - dataNasc.getFullYear();
+                const mes = hoje.getMonth() - dataNasc.getMonth();
+                
+                if (mes < 0 || (mes === 0 && hoje.getDate() < dataNasc.getDate())) {
+                    idade--;
+                }
+                textoIdade = `${idade} anos`;
             }
-            textoIdade = `${idade} anos`;
-        }
 
-        tabela.innerHTML += `<tr>
-                <td>${u.nome}</td>
-                <td><strong>${textoIdade}</strong></td>
-                <td>${u.cargo.toUpperCase()}</td>
-                <td style="color: ${u.aprovado ? '#4caf50' : '#ffaa00'}">${u.aprovado ? 'Ativo' : 'Pendente'}</td>
-                <td>
-                    ${!u.aprovado ? `<button onclick="aprovarUser('${u.id}')" class="btn-primary btn-small" style="margin-right: 5px;">Aprovar</button>` : ''} 
-                    <button onclick="removerUser('${u.id}')" class="btn-delete">X</button>
-                </td>
-            </tr>`;
-    });
-    
-    // Se a tabela ficar vazia (só com thead) após os filtros:
-    if (tabela.rows.length === 1) {
-        tabela.innerHTML += '<tr><td colspan="5" class="text-center text-muted">Nenhum professor ou coordenador pendente.</td></tr>';
-    } else {
+            tabela.innerHTML += `<tr>
+                    <td>${u.nome}</td>
+                    <td><strong>${textoIdade}</strong></td>
+                    <td>${u.cargo.toUpperCase()}</td>
+                    <td style="color: ${u.aprovado ? '#4caf50' : '#ffaa00'}">${u.aprovado ? 'Ativo' : 'Pendente'}</td>
+                    <td>
+                        ${!u.aprovado ? `<button onclick="aprovarUser('${u.id}')" class="btn-primary btn-small" style="margin-right: 5px;">Aprovar</button>` : ''} 
+                        <button onclick="removerUser('${u.id}')" class="btn-delete">X</button>
+                    </td>
+                </tr>`;
+        });
+        
+        if (users.length === 0) {
+            tabela.innerHTML += '<tr><td colspan="5" class="text-center text-muted">Nenhum usuário cadastrado.</td></tr>';
+        }
+        
         tabela.innerHTML += '</tbody>';
+    } catch (e) {
+        tabela.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Erro de conexão ao buscar usuários.</td></tr>';
     }
-} 
+}
 async function aprovarUser(id) { await authFetch(`${API_URL}/admin/aprovar/${id}`, { method: 'PATCH' }); carregarUsuariosAdmin(); }
 async function removerUser(id) { if(confirm("Remover usuário?")) { await authFetch(`${API_URL}/admin/user/${id}`, { method: 'DELETE' }); carregarUsuariosAdmin(); } }
 
