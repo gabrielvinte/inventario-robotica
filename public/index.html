@@ -54,12 +54,14 @@
                         <span id="roleDisplay" class="role-badge">Cargo</span>
                     </div>
                     <button id="btnAdminPanel" class="btn-warning hidden">SISTEMA</button>
+                   <button id="btnRelatorios" onclick="mostrarRelatorios()" class="btn-warning hidden" style="margin-left: 10px;">RELATÓRIOS</button>
                     <button onclick="logout()" class="btn-logout">ENCERRAR</button>
                 </div>
             </div>
             <nav class="nav-tabs">
                 <button onclick="mudarAba('estoque')" class="tab-btn active" id="tab-estoque">INVENTÁRIO</button>
                 <button onclick="mudarAba('kits')" class="tab-btn" id="tab-kits">KITS</button>
+                <button onclick="mudarAba('depositos')" class="tab-btn" id="tab-depositos">DEPÓSITOS</button>
             </nav>
         </header>
 
@@ -80,7 +82,7 @@
                         </div>
                         <div class="input-group">
                             <label>LOCALIZAÇÃO</label>
-                            <input type="text" id="localizacao" placeholder="Ex: Prateleira 5" required>
+                            <input type="text" id="localizacao" placeholder="Ex: Prateleira 5">
                         </div>
                         <div class="input-group">
                             <label>UNIDADES</label>
@@ -167,6 +169,39 @@
                 <div id="listaKitsAlugados" class="cards-grid hidden"></div>
             </section>
         </div>
+
+        <div id="view-depositos" class="hidden fade-in">
+            <section id="criarDepositoSection" class="card hidden">
+                <h3>CRIAR NOVO DEPÓSITO</h3>
+                <div class="grid-form">
+                    <input type="text" id="depositoNome" placeholder="NOME DO DEPÓSITO">
+                    <input type="text" id="depositoLocal" placeholder="LOCALIZAÇÃO">
+                    
+                    <div class="input-group" style="grid-column: 1 / -1;">
+                        <label>RESPONSÁVEL (Opcional)</label>
+                        <select id="depositoResponsavelSelect">
+                            <option value="">SEM RESPONSÁVEL FIXO (Livre para Staff)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="kit-builder" style="margin-top: 15px;">
+                    <h4>ITENS DO DEPÓSITO:</h4>
+                    <div class="builder-controls">
+                        <select id="depositoMaterialSelect"></select>
+                        <input type="number" id="depositoMaterialQtd" value="1" min="1">
+                        <button onclick="adicionarItemAoDeposito()" class="btn-outline">ANEXAR</button>
+                    </div>
+                    <ul id="listaItensDepositoPreview" class="preview-list"></ul>
+                </div>
+                <button onclick="salvarDeposito()" class="btn-primary">TRANCAR DEPÓSITO</button>
+            </section>
+
+            <section class="list-section">
+                <h3>DEPÓSITOS CADASTRADOS</h3>
+                <div id="listaDepositos" class="cards-grid"></div>
+            </section>
+        </div>
     </div>
 
     <div id="admin-screen" class="hidden main-container fade-in">
@@ -180,6 +215,32 @@
             <h3>AUTORIZAÇÕES PENDENTES</h3>
             <div class="table-container">
                 <table id="tabelaUsers"></table>
+            </div>
+        </section>
+    </div>
+
+    <div id="relatorios-screen" class="hidden main-container fade-in">
+        <header>
+            <div class="header-content">
+                <h1>HISTÓRICO DE AUDITORIA</h1>
+                <button onclick="voltarAoAppDeRelatorios()" class="btn-outline">RETORNAR</button>
+            </div>
+        </header>
+        <section class="card">
+            <h3>RELATÓRIOS DE ALTERAÇÃO EM DEPÓSITOS</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>DATA</th>
+                            <th>DEPÓSITO</th>
+                            <th>AUTOR</th>
+                            <th>ALTERAÇÕES</th>
+                            <th>AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaRelatorios"></tbody>
+                </table>
             </div>
         </section>
     </div>
