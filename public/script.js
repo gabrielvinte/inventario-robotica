@@ -717,10 +717,22 @@ async function carregarUsuariosAdmin() {
                 textoIdade = `${idade} anos`;
             }
 
+           // Se for o Admin logado, ele vê um Select para mudar os cargos. Se for um professor olhando, ele vê só o texto.
+            let cargoHTML = u.cargo.toUpperCase();
+            if (currentUser.cargo === 'admin') {
+                cargoHTML = `
+                    <select onchange="alterarCargoUser('${u.id}', this.value)" style="padding: 5px; font-size: 0.8rem; background: var(--bg-deep); color: var(--text-main); border: 1px solid var(--border-subtle); border-radius: 2px;">
+                        <option value="aluno" ${u.cargo === 'aluno' ? 'selected' : ''}>ALUNO</option>
+                        <option value="professor" ${u.cargo === 'professor' ? 'selected' : ''}>PROFESSOR</option>
+                        <option value="coordenador" ${u.cargo === 'coordenador' ? 'selected' : ''}>COORDENADOR</option>
+                    </select>
+                `;
+            }
+
             tabela.innerHTML += `<tr>
                     <td>${u.nome}</td>
                     <td><strong>${textoIdade}</strong></td>
-                    <td>${u.cargo.toUpperCase()}</td>
+                    <td>${cargoHTML}</td>
                     <td style="color: ${u.aprovado ? '#4caf50' : '#ffaa00'}">${u.aprovado ? 'Ativo' : 'Pendente'}</td>
                     <td>
                         ${!u.aprovado ? `<button onclick="aprovarUser('${u.id}')" class="btn-primary btn-small" style="margin-right: 5px;">Aprovar</button>` : ''} 
@@ -736,6 +748,34 @@ async function carregarUsuariosAdmin() {
         tabela.innerHTML += '</tbody>';
     } catch (e) {
         tabela.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Erro de conexão ao buscar usuários.</td></tr>';
+    }
+}
+
+// Nova função para processar a mudança de cargo
+async function alterarCargoUser(id, novoCargo) {
+    if(!confirm(`Tem certeza que deseja promover/rebaixar este usuário para ${novoCargo.toUpperCase()}?`)) {
+        carregarUsuariosAdmin(); // Se cancelar, volta o select para o estado original
+        return;
+    }
+    
+    try {
+        const res = await authFetch(`${API_URL}/admin/user/${id}/cargo`, {
+            method: 'PATCH',
+            body: JSON.stringify({ cargo: novoCargo })
+        });
+        
+        if (res.ok) {
+            alert("✅ Privilégios do usuário alterados com sucesso!");
+            // Se você promover alguém a admin, ele vai sumir desta lista, pois a lista oculta admins.
+            carregarUsuariosAdmin(); 
+        } else {
+            const err = await res.json();
+            alert(`❌ Erro: ${err.error}`);
+            carregarUsuariosAdmin();
+        }
+    } catch (e) { 
+        alert("Erro de conexão com o servidor."); 
+        carregarUsuariosAdmin();
     }
 }
 async function aprovarUser(id) { await authFetch(`${API_URL}/admin/aprovar/${id}`, { method: 'PATCH' }); carregarUsuariosAdmin(); }

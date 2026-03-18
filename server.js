@@ -472,6 +472,27 @@ app.delete('/api/admin/user/:id', [verificarToken, podeGerenciar], async (req, r
         res.json({ message: "Removido" });
     } catch (error) { res.status(500).json({ error: "Erro" }); }
 });
+// Alterar Cargo do Usuário (SÓ ADMIN - )
+app.patch('/api/admin/user/:id/cargo', verificarToken, async (req, res) => {
+    try {
+        if (req.userCargo !== 'admin') {
+            return res.status(403).json({ error: "Apenas o Admin pode alterar cargos." });
+        }
+        
+        const { cargo } = req.body;
+        // TRAVA: Removido o 'admin' da lista de possibilidades
+        const cargosValidos = ['aluno', 'professor', 'coordenador'];
+        
+        if (!cargosValidos.includes(cargo)) {
+            return res.status(400).json({ error: "Cargo inválido ou não autorizado para promoção." });
+        }
+
+        await pool.query('UPDATE users SET cargo = ? WHERE id = ?', [cargo, req.params.id]);
+        res.json({ message: "Cargo atualizado com sucesso!" });
+    } catch (error) { 
+        res.status(500).json({ error: "Erro ao atualizar cargo." }); 
+    }
+});
 
 // ==========================================
 // --- ROTAS DE DEPÓSITOS E RELATÓRIOS ---
