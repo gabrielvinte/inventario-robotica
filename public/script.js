@@ -6,6 +6,12 @@ let currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 let itensKitTemporario = [];
 let itensDepositoTemporario = [];
 
+// VARIÁVEIS GLOBAIS PARA O MODAL UNIVERSAL
+let kitsMapeados = [];
+let depositosMapeados = [];
+let caixasMapeadas = []; 
+let dadosModalAtual = [];
+
 const authScreen = document.getElementById('auth-screen');
 const appScreen = document.getElementById('app-screen');
 const adminScreen = document.getElementById('admin-screen');
@@ -165,6 +171,7 @@ function mostrarApp() {
     carregarUsuariosParaDeposito(); // DEPÓSITOS
     carregarItensParaDeposito();    // DEPÓSITOS
     carregarDepositos();            // DEPÓSITOS
+    carregarCaixas();               // NOVA ABA
     
     if(ehStaff) carregarSolicitacoes();
 }
@@ -172,11 +179,13 @@ function mostrarApp() {
 function mudarAba(aba) {
     document.getElementById('view-estoque').classList.add('hidden');
     document.getElementById('view-kits').classList.add('hidden');
-    document.getElementById('view-depositos').classList.add('hidden'); // Nova aba
+    document.getElementById('view-depositos').classList.add('hidden');
+    document.getElementById('view-caixas').classList.add('hidden'); // ADICIONADO
     
     document.getElementById('tab-estoque').classList.remove('active');
     document.getElementById('tab-kits').classList.remove('active');
-    document.getElementById('tab-depositos').classList.remove('active'); // Nova aba
+    document.getElementById('tab-depositos').classList.remove('active');
+    document.getElementById('tab-caixas').classList.remove('active'); // ADICIONADO
 
     document.getElementById(`view-${aba}`).classList.remove('hidden');
     document.getElementById(`tab-${aba}`).classList.add('active');
@@ -318,7 +327,7 @@ async function carregarItens(termo = '') {
                 <td class="text-center">${item.quantidade}</td>
                 ${ehStaff ? `
                 <td class="text-right">
-                    <button onclick="editarLocalizacao('${item.id}', '${item.localizacao}')" class="btn-icon" title="Editar Local"><span class="material-icons" style="font-size: 16px; vertical-align: middle;">edit_location</span></button>
+                    <button onclick="editarItem('${item.id}', '${item.nome}', '${item.especificacao || ''}', '${item.localizacao}')" class="btn-icon" title="Editar Item"><span class="material-icons" style="font-size: 16px; vertical-align: middle;">edit</span></button>
                     <button onclick="alterarQtd('${item.id}', ${item.quantidade + 1})" class="btn-icon">+</button>
                     <button onclick="alterarQtd('${item.id}', ${item.quantidade - 1})" class="btn-icon">-</button>
                     <button onclick="deletarItem('${item.id}')" class="btn-delete">EXCLUIR</button>
@@ -327,25 +336,50 @@ async function carregarItens(termo = '') {
             </tr>`;
     });
 }
+// EDITA AS PROPRIEDADES DO ITEM (Nome, Espec ou Local)
+async function editarItem(idItem, nomeAtual, especAtual, localAtual) {
+    const opcao = prompt(`Editando: ${nomeAtual}\nO que você deseja alterar no componente?\n\nDigite o número:\n1 - Nome do Material\n2 - Especificação Técnica\n3 - Localização`, "1");
 
-// EDITA A LOCALIZAÇÃO DO ITEM
-async function editarLocalizacao(idItem, localAtual) {
-    const novaLocalizacao = prompt("Informe a nova localização para este item:", localAtual);
+    let payload = {};
 
-    if (novaLocalizacao !== null && novaLocalizacao.trim() !== "" && novaLocalizacao !== localAtual) {
+    if (opcao === "1") {
+        const novoNome = prompt(`Digite o NOVO NOME para o componente:`, nomeAtual);
+        if (novoNome && novoNome.trim() !== "" && novoNome !== nomeAtual) {
+            payload = { nome: novoNome.trim() };
+        }
+    } else if (opcao === "2") {
+        const novaEspec = prompt(`Digite a NOVA ESPECIFICAÇÃO para ${nomeAtual}:`, especAtual);
+        if (novaEspec !== null && novaEspec.trim() !== especAtual) {
+            payload = { especificacao: novaEspec.trim() };
+        }
+    } else if (opcao === "3") {
+        const novoLocal = prompt(`Digite a NOVA LOCALIZAÇÃO para ${nomeAtual}:`, localAtual);
+        if (novoLocal && novoLocal.trim() !== "" && novoLocal !== localAtual) {
+            payload = { localizacao: novoLocal.trim() };
+        }
+    } else if (opcao !== null) {
+        alert("Opção inválida! Por favor, digite 1, 2 ou 3.");
+        return;
+    }
+
+    if (Object.keys(payload).length > 0) {
         try {
             const res = await authFetch(`${API_URL}/itens/${idItem}`, { 
                 method: 'PATCH', 
-                body: JSON.stringify({ localizacao: novaLocalizacao.trim() }) 
+                body: JSON.stringify(payload) 
             });
             
             if(res.ok) {
                 carregarItens(document.getElementById('busca').value); 
+                carregarCaixas(); 
+                carregarItensParaKit();
+                carregarItensParaDeposito();
             } else {
-                alert("❌ Erro ao atualizar a localização do item.");
+                const err = await res.json();
+                alert(`❌ Erro: ${err.error || "Não foi possível atualizar o item."}`);
             }
         } catch (e) {
-            alert("❌ Erro de conexão ao tentar atualizar a localização.");
+            alert("❌ Erro de conexão ao tentar atualizar o item.");
         }
     }
 }
@@ -364,6 +398,7 @@ async function carregarItensParaKit() {
                 opt.value = item.id;
                 opt.dataset.nome = item.nome;
                 opt.dataset.max = item.quantidade;
+                opt.dataset.especificacao = item.especificacao || ''; // GUARDA A ESPECIFICAÇÃO
                 opt.innerText = `${item.nome} ${item.especificacao ? '('+item.especificacao+')' : ''} - Restam: ${item.quantidade}`;
                 select.appendChild(opt);
             }
@@ -390,6 +425,7 @@ document.getElementById('formItem').addEventListener('submit', async (e) => {
     carregarItens();
     carregarItensParaKit(); // Mantém o dropdown de kits sincronizado
     carregarItensParaDeposito(); // Mantém o dropdown de depósitos sincronizado
+    carregarCaixas(); // Atualiza a aba das Caixas
 });
 
 async function alterarQtd(id, novaQtd) {
@@ -398,6 +434,7 @@ async function alterarQtd(id, novaQtd) {
     carregarItens(document.getElementById('busca').value);
     carregarItensParaKit(); // Mantém o dropdown de kits sincronizado
     carregarItensParaDeposito();
+    carregarCaixas(); // Atualiza a aba das Caixas
 }
 
 async function deletarItem(id) {
@@ -410,6 +447,7 @@ async function deletarItem(id) {
                 carregarItens(); 
                 carregarItensParaKit(); 
                 carregarItensParaDeposito();
+                carregarCaixas(); // Atualiza a aba das Caixas
             } else {
                 // Ops, deu ruim! Vamos ver o que o servidor disse:
                 const erro = await res.json();
@@ -433,6 +471,7 @@ function adicionarItemAoKit() {
     const opcaoSelecionada = select.options[select.selectedIndex];
     const itemId = select.value;
     const nome = opcaoSelecionada.dataset.nome;
+    const especificacao = opcaoSelecionada.dataset.especificacao; // RESGATA A ESPECIFICAÇÃO
     const maxQtd = parseInt(opcaoSelecionada.dataset.max);
     const qtdRequerida = parseInt(document.getElementById('kitMaterialQtd').value);
 
@@ -446,7 +485,8 @@ function adicionarItemAoKit() {
         if (novaQtd > maxQtd) return alert(`Limite excedido! O total (${novaQtd}) passa do seu estoque atual (${maxQtd}).`);
         itensKitTemporario[indexExistente].quantidade = novaQtd;
     } else {
-        itensKitTemporario.push({ itemId: itemId, nome: nome, quantidade: qtdRequerida });
+        // GUARDA A ESPECIFICAÇÃO NO OBJETO
+        itensKitTemporario.push({ itemId: itemId, nome: nome, especificacao: especificacao, quantidade: qtdRequerida });
     }
     
     renderizarPreviewKit();
@@ -458,7 +498,11 @@ function renderizarPreviewKit() {
     const ul = document.getElementById('listaItensKitPreview');
     ul.innerHTML = '';
     itensKitTemporario.forEach((item, index) => {
-        ul.innerHTML += `<li>${item.quantidade}x ${item.nome} <span style="color:red; cursor:pointer;" onclick="itensKitTemporario.splice(${index},1); renderizarPreviewKit()">[X]</span></li>`;
+        ul.innerHTML += `
+            <li style="display:flex; justify-content:space-between; align-items:center;">
+                <span>${item.quantidade}x ${item.nome} <small class="text-muted">${item.especificacao ? '('+item.especificacao+')' : ''}</small></span> 
+                <span style="color:red; cursor:pointer;" onclick="itensKitTemporario.splice(${index},1); renderizarPreviewKit()">[X]</span>
+            </li>`;
     });
 }
 
@@ -483,6 +527,7 @@ async function salvarKit() {
             carregarItens(); 
             carregarItensParaKit(); 
             carregarItensParaDeposito();
+            carregarCaixas(); // Atualiza a aba das Caixas
         } else {
             const erro = await res.json();
             alert("❌ Erro ao criar kit: " + (erro.error || "Erro desconhecido"));
@@ -500,51 +545,41 @@ async function carregarKits() {
     
     try {
         const res = await authFetch(`${API_URL}/kits`);
-        
-        if (!res.ok) {
-            const erroDetalhado = await res.text();
-            divDisp.innerHTML = `<p class="text-danger" style="background: rgba(255,0,0,0.1); padding: 10px; border: 1px dashed red;"><strong>Erro do Servidor:</strong> ${erroDetalhado}</p>`;
-            divAlug.innerHTML = `<p class="text-danger">Falha na comunicação.</p>`;
-            return;
-        }
+        if (!res.ok) throw new Error("Falha na comunicação.");
 
         const data = await res.json();
-        const kits = Array.isArray(data) ? data : [];
+        kitsMapeados = Array.isArray(data) ? data : [];
         
         divDisp.innerHTML = '';
         divAlug.innerHTML = '';
-
         const ehStaff = ['admin', 'professor', 'coordenador'].includes(currentUser?.cargo);
 
-        kits.forEach(kit => {
+        kitsMapeados.forEach((kit, index) => {
             let conteudoArray = [];
             try {
                 let parsed = typeof kit.conteudo === 'string' ? JSON.parse(kit.conteudo) : kit.conteudo;
                 if (Array.isArray(parsed)) conteudoArray = parsed;
-            } catch(e) {
-                console.error("Erro ao ler conteúdo do kit:", kit.nome, e);
-            }
-
-            let listaHTML = conteudoArray.map(i => `<li>${i.quantidade}x ${i.nome}</li>`).join('');
+            } catch(e) {}
             
+            kit.conteudoParsed = conteudoArray; // Salva para o Modal ler depois
             const estaAlugado = kit.alugadoPor != null;
 
             let cardHTML = `
-                <div class="card kit-card">
-                    <h3>${kit.nome}</h3>
-                    <p>
-                        <strong>Local:</strong> ${kit.localizacao} 
-                        ${ehStaff ? `<button onclick="editarLocalizacaoKit('${kit.id}', '${kit.localizacao}')" class="btn-icon" title="Editar Local do Kit" style="background:none; border:none; padding:0; margin-left: 5px; cursor:pointer; color: var(--text-muted);"><span class="material-icons" style="font-size: 16px; vertical-align: middle;">edit_location</span></button>` : ''}
-                    </p>
-                    <ul class="kit-content-list">${listaHTML}</ul>
+                <div class="card kit-card" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+                    <div>
+                        <h3>${kit.nome}</h3>
+                        <p style="margin-bottom: 10px;">
+                            <strong>Local:</strong> ${kit.localizacao} 
+                            ${ehStaff ? `<button onclick="editarLocalizacaoKit('${kit.id}', '${kit.localizacao}')" class="btn-icon" title="Editar Local" style="background:none; border:none; padding:0; margin-left: 5px; cursor:pointer; color: var(--text-muted);"><span class="material-icons" style="font-size: 16px; vertical-align: middle;">edit_location</span></button>` : ''}
+                        </p>
+                        <button onclick="abrirModalVisualizar('kit', ${index})" class="btn-outline" style="width: 100%; margin-bottom: 15px;">VER ITENS DA MONTAGEM</button>
+                    </div>
             `;
 
             if (estaAlugado) {
                 const prazo = new Date(kit.prazoDevolucao);
                 const hoje = new Date();
-                prazo.setHours(0,0,0,0);
-                hoje.setHours(0,0,0,0);
-                
+                prazo.setHours(0,0,0,0); hoje.setHours(0,0,0,0);
                 const diffDias = Math.ceil((prazo - hoje) / (1000 * 60 * 60 * 24));
                 const estaAtrasado = diffDias < 0;
 
@@ -553,23 +588,20 @@ async function carregarKits() {
                 let textoStatus = estaAtrasado ? `🔴 ATRASADO HÁ ${Math.abs(diffDias)} DIA(S)` : (diffDias === 0 ? '🟡 DEVOLVER HOJE' : `🟢 FALTAM ${diffDias} DIA(S)`);
 
                 cardHTML += `
-                    <div style="margin-top:10px; padding: 10px; background: ${corFundo}; border: 1px dashed ${corBorda}; border-radius: 4px;">
+                    <div style="padding: 10px; background: ${corFundo}; border: 1px dashed ${corBorda}; border-radius: 4px;">
                         <p style="color: ${corBorda}; font-size: 0.85rem; margin-bottom: 5px;"><strong>${textoStatus}</strong></p>
                         <p style="font-size: 0.8rem;"><strong>Alugado por:</strong> ${kit.alugadoPor}</p>
                     </div>
+                    ${ehStaff ? `<button onclick="deletarKit('${kit.id}')" class="btn-delete" style="margin-top:10px; width: 100%;">Apagar Kit</button>` : ''}
                 `;
-                if (ehStaff) {
-                    cardHTML += `<button onclick="deletarKit('${kit.id}')" class="btn-delete" style="margin-top:10px; width: 100%;">Apagar Kit</button>`;
-                }
             } else {
                 cardHTML += `
-                    <div style="margin-top:10px;">
-                        <button onclick="solicitarKit('${kit.id}', '${kit.nome}')" class="btn-primary">Reservar Kit</button>
+                    <div>
+                        <button onclick="solicitarKit('${kit.id}', '${kit.nome}')" class="btn-primary" style="width: 100%;">Reservar Kit</button>
                         ${ehStaff ? `<button onclick="deletarKit('${kit.id}')" class="btn-delete" style="margin-top:5px; width:100%;">Apagar Kit</button>` : ''}
                     </div>
                 `;
             }
-
             cardHTML += `</div>`;
 
             if (estaAlugado) divAlug.innerHTML += cardHTML;
@@ -578,12 +610,9 @@ async function carregarKits() {
         
         if(divDisp.innerHTML === '') divDisp.innerHTML = '<p class="text-muted">Nenhum kit disponível.</p>';
         if(divAlug.innerHTML === '') divAlug.innerHTML = '<p class="text-muted">Nenhum kit alugado no momento.</p>';
-
-    } catch(e) {
-        console.error("Erro crítico na função carregarKits:", e);
-        divDisp.innerHTML = '<p class="text-danger">Erro ao renderizar a interface.</p>';
-    }
+    } catch(e) { divDisp.innerHTML = '<p class="text-danger">Erro ao renderizar a interface.</p>'; }
 }
+
 async function editarLocalizacaoKit(idKit, localAtual) {
     const novaLocalizacao = prompt("Informe a nova localização para este kit:", localAtual);
 
@@ -862,6 +891,7 @@ async function carregarItensParaDeposito() {
                 opt.value = item.id;
                 opt.dataset.nome = item.nome;
                 opt.dataset.max = item.quantidade;
+                opt.dataset.especificacao = item.especificacao || ''; // GUARDA A ESPECIFICAÇÃO
                 opt.innerText = `${item.nome} ${item.especificacao ? '('+item.especificacao+')' : ''} - Restam: ${item.quantidade}`;
                 select.appendChild(opt);
             }
@@ -876,6 +906,7 @@ function adicionarItemAoDeposito() {
     const opcaoSelecionada = select.options[select.selectedIndex];
     const itemId = select.value;
     const nome = opcaoSelecionada.dataset.nome;
+    const especificacao = opcaoSelecionada.dataset.especificacao; // RESGATA A ESPECIFICAÇÃO
     const maxQtd = parseInt(opcaoSelecionada.dataset.max);
     const qtdRequerida = parseInt(document.getElementById('depositoMaterialQtd').value);
 
@@ -887,7 +918,8 @@ function adicionarItemAoDeposito() {
         if (novaQtd > maxQtd) return alert(`Limite excedido! O total (${novaQtd}) passa do seu estoque atual.`);
         itensDepositoTemporario[indexExistente].quantidade = novaQtd;
     } else {
-        itensDepositoTemporario.push({ itemId: itemId, nome: nome, quantidade: qtdRequerida });
+        // GUARDA A ESPECIFICAÇÃO NO OBJETO
+        itensDepositoTemporario.push({ itemId: itemId, nome: nome, especificacao: especificacao, quantidade: qtdRequerida });
     }
     
     renderizarPreviewDeposito();
@@ -899,7 +931,11 @@ function renderizarPreviewDeposito() {
     const ul = document.getElementById('listaItensDepositoPreview');
     ul.innerHTML = '';
     itensDepositoTemporario.forEach((item, index) => {
-        ul.innerHTML += `<li>${item.quantidade}x ${item.nome} <span style="color:red; cursor:pointer;" onclick="itensDepositoTemporario.splice(${index},1); renderizarPreviewDeposito()">[X]</span></li>`;
+        ul.innerHTML += `
+            <li style="display:flex; justify-content:space-between; align-items:center;">
+                <span>${item.quantidade}x ${item.nome} <small class="text-muted">${item.especificacao ? '('+item.especificacao+')' : ''}</small></span> 
+                <span style="color:red; cursor:pointer;" onclick="itensDepositoTemporario.splice(${index},1); renderizarPreviewDeposito()">[X]</span>
+            </li>`;
     });
 }
 
@@ -910,32 +946,61 @@ async function salvarDeposito() {
     const responsavelId = selectResp.value;
     const responsavelNome = responsavelId ? selectResp.options[selectResp.selectedIndex].text.split(' (')[0] : null;
 
-    if(!nome || !local || itensDepositoTemporario.length === 0) return alert("Preencha nome, local e adicione itens ao depósito.");
+    if(!nome || !local || itensDepositoTemporario.length === 0) return alert("Preencha nome, local e adicione itens.");
 
-    try {
-        const res = await authFetch(`${API_URL}/depositos`, {
-            method: 'POST',
-            body: JSON.stringify({ nome, localizacao: local, conteudo: itensDepositoTemporario, responsavelId, responsavelNome })
-        });
+    if (depositoEmEdicao) {
+        // FLUXO DE EDIÇÃO (PUT)
+        const motivo = prompt(`AUDITORIA OBRIGATÓRIA:\nJustifique a recontagem/alteração de itens no depósito "${nome}":`);
+        if (!motivo) return alert("Alteração cancelada. A auditoria é obrigatória.");
 
-        if (res.ok) {
-            alert("✅ Depósito criado e trancado com sucesso!");
-            itensDepositoTemporario = [];
-            document.getElementById('depositoNome').value = '';
-            document.getElementById('depositoLocal').value = '';
-            renderizarPreviewDeposito();
-            carregarDepositos();
-            carregarItens(); 
-            carregarItensParaKit(); 
-            carregarItensParaDeposito();
-        } else {
-            const erro = await res.json();
-            alert("❌ Erro ao criar depósito: " + (erro.error || "Erro desconhecido"));
-        }
-    } catch (e) { alert("Erro de conexão ao criar depósito."); }
+        try {
+            const res = await authFetch(`${API_URL}/depositos/${depositoEmEdicao}`, {
+                method: 'PUT',
+                body: JSON.stringify({ conteudoNovo: itensDepositoTemporario, motivo })
+            });
+            if (res.ok) {
+                alert("✅ Itens atualizados e relatório arquivado no painel do Admin!");
+                limparFormularioDeposito();
+            } else {
+                const erro = await res.json();
+                alert(`❌ Erro ao atualizar: ${erro.error}`);
+            }
+        } catch (e) { alert("Erro de connection."); }
+
+    } else {
+        // FLUXO DE CRIAÇÃO ORIGINAL (POST)
+        try {
+            const res = await authFetch(`${API_URL}/depositos`, {
+                method: 'POST',
+                body: JSON.stringify({ nome, localizacao: local, conteudo: itensDepositoTemporario, responsavelId, responsavelNome })
+            });
+
+            if (res.ok) {
+                alert("✅ Depósito trancado com sucesso!");
+                limparFormularioDeposito();
+            } else {
+                const erro = await res.json();
+                alert(`❌ Erro: ${erro.error}`);
+            }
+        } catch (e) { alert("Erro de conexão."); }
+    }
 }
 
-// SUBSTITUA ESTA FUNÇÃO:
+function limparFormularioDeposito() {
+    depositoEmEdicao = null;
+    itensDepositoTemporario = [];
+    document.getElementById('depositoNome').value = '';
+    document.getElementById('depositoLocal').value = '';
+    document.getElementById('depositoNome').disabled = false;
+    document.getElementById('depositoResponsavelSelect').disabled = false;
+    document.querySelector('#criarDepositoSection h3').innerText = "CRIAR NOVO DEPÓSITO";
+    renderizarPreviewDeposito();
+    carregarDepositos();
+    carregarItens(); 
+    carregarItensParaKit(); 
+    carregarItensParaDeposito();
+}
+
 async function carregarDepositos() {
     const container = document.getElementById('listaDepositos');
     if(!container) return;
@@ -943,21 +1008,17 @@ async function carregarDepositos() {
     
     try {
         const res = await authFetch(`${API_URL}/depositos`);
-        const depositos = await res.json();
+        depositosMapeados = await res.json();
         container.innerHTML = '';
 
-        depositos.forEach(dep => {
+        depositosMapeados.forEach((dep, index) => {
             let conteudoArray = typeof dep.conteudo === 'string' ? JSON.parse(dep.conteudo) : dep.conteudo;
-            let listaHTML = conteudoArray.map(i => `<li>${i.quantidade}x ${i.nome}</li>`).join('');
+            dep.conteudoParsed = conteudoArray; // Salva para o Modal
 
-            // --- LÓGICA DE TRAVA DE ACESSO ---
             let podeAlterar = false;
             let ehAdmin = currentUser.cargo === 'admin';
-            let ehResponsavel = dep.responsavelId == currentUser.id;
-            let semResponsavel = !dep.responsavelId;
             let ehStaff = ['admin', 'professor', 'coordenador'].includes(currentUser.cargo);
-
-            if (ehAdmin || ehResponsavel || (semResponsavel && ehStaff)) podeAlterar = true;
+            if (ehAdmin || dep.responsavelId == currentUser.id || (!dep.responsavelId && ehStaff)) podeAlterar = true;
 
             let respText = dep.responsavelNome ? `🔒 Acesso: ${dep.responsavelNome}` : `🔓 Acesso Livre (Staff)`;
             let corBorda = dep.responsavelNome ? '#d32f2f' : '#4caf50';
@@ -973,21 +1034,23 @@ async function carregarDepositos() {
             ` : `<button disabled class="btn-outline" style="margin-top:10px; opacity: 0.5; width: 100%; cursor: not-allowed;">Acesso Restrito</button>`;
 
             container.innerHTML += `
-                <div class="card kit-card" style="border-top: 3px solid ${corBorda};">
-                    <h3>${dep.nome}</h3>
-                    <p><strong>Local:</strong> ${dep.localizacao}</p>
-                    <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 10px; font-weight: bold; color: ${corBorda};">${respText}</p>
-                    <ul class="kit-content-list">${listaHTML}</ul>
-                    ${botoesHTML}
+                <div class="card kit-card" style="border-top: 3px solid ${corBorda}; display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+                    <div>
+                        <h3>${dep.nome}</h3>
+                        <p><strong>Local:</strong> ${dep.localizacao}</p>
+                        <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 10px; font-weight: bold; color: ${corBorda};">${respText}</p>
+                        <button onclick="abrirModalVisualizar('deposito', ${index})" class="btn-outline" style="width: 100%; margin-bottom: 10px;">VER CONTEÚDO DO DEPÓSITO</button>
+                    </div>
+                    <div>${botoesHTML}</div>
                 </div>
             `;
         });
         
-        if(depositos.length === 0) container.innerHTML = '<p class="text-muted">Nenhum depósito cadastrado.</p>';
+        if(depositosMapeados.length === 0) container.innerHTML = '<p class="text-muted">Nenhum depósito cadastrado.</p>';
     } catch(e) { container.innerHTML = '<p class="text-danger">Erro ao carregar depósitos.</p>'; }
 }
 
-let depositoEmEdicao = null; // Fica no topo junto com as outras variáveis
+let depositoEmEdicao = null; 
 
 async function deletarDeposito(id, nome) {
     const motivo = prompt(`AUDITORIA: Por que o depósito "${nome}" está sendo excluído?`);
@@ -1032,7 +1095,6 @@ async function editarLocalizacaoDeposito(id, nome, localAtual) {
     } catch (e) { alert("Falha na comunicação."); }
 }
 
-// Quando clica em "Editar Itens", preenchemos o formulário de criação com os dados antigos
 function prepararEdicaoDeposito(id, nome, localizacao, conteudoStr) {
     depositoEmEdicao = id;
     itensDepositoTemporario = JSON.parse(conteudoStr);
@@ -1040,80 +1102,13 @@ function prepararEdicaoDeposito(id, nome, localizacao, conteudoStr) {
     document.getElementById('depositoNome').value = nome;
     document.getElementById('depositoLocal').value = localizacao;
     
-    // Trava os campos base para forçar só a edição dos itens
     document.getElementById('depositoNome').disabled = true;
     document.getElementById('depositoResponsavelSelect').disabled = true;
     
     document.querySelector('#criarDepositoSection h3').innerText = "ATUALIZAR CONTEÚDO DO DEPÓSITO";
     
     renderizarPreviewDeposito();
-    
-    // Rola a tela pra cima suavemente
     document.getElementById('view-depositos').scrollIntoView({ behavior: 'smooth' });
-}
-
-// SUBSTITUA A FUNÇÃO salvarDeposito ATUAL POR ESTA:
-async function salvarDeposito() {
-    const nome = document.getElementById('depositoNome').value;
-    const local = document.getElementById('depositoLocal').value;
-    const selectResp = document.getElementById('depositoResponsavelSelect');
-    const responsavelId = selectResp.value;
-    const responsavelNome = responsavelId ? selectResp.options[selectResp.selectedIndex].text.split(' (')[0] : null;
-
-    if(!nome || !local || itensDepositoTemporario.length === 0) return alert("Preencha nome, local e adicione itens.");
-
-    if (depositoEmEdicao) {
-        // FLUXO DE EDIÇÃO (PUT)
-        const motivo = prompt(`AUDITORIA OBRIGATÓRIA:\nJustifique a recontagem/alteração de itens no depósito "${nome}":`);
-        if (!motivo) return alert("Alteração cancelada. A auditoria é obrigatória.");
-
-        try {
-            const res = await authFetch(`${API_URL}/depositos/${depositoEmEdicao}`, {
-                method: 'PUT',
-                body: JSON.stringify({ conteudoNovo: itensDepositoTemporario, motivo })
-            });
-            if (res.ok) {
-                alert("✅ Itens atualizados e relatório arquivado no painel do Admin!");
-                limparFormularioDeposito();
-            } else {
-                const erro = await res.json();
-                alert(`❌ Erro ao atualizar: ${erro.error}`);
-            }
-        } catch (e) { alert("Erro de conexão."); }
-
-    } else {
-        // FLUXO DE CRIAÇÃO ORIGINAL (POST)
-        try {
-            const res = await authFetch(`${API_URL}/depositos`, {
-                method: 'POST',
-                body: JSON.stringify({ nome, localizacao: local, conteudo: itensDepositoTemporario, responsavelId, responsavelNome })
-            });
-
-            if (res.ok) {
-                alert("✅ Depósito trancado com sucesso!");
-                limparFormularioDeposito();
-            } else {
-                const erro = await res.json();
-                alert(`❌ Erro: ${erro.error}`);
-            }
-        } catch (e) { alert("Erro de conexão."); }
-    }
-}
-
-// Função para resetar o form após salvar ou atualizar
-function limparFormularioDeposito() {
-    depositoEmEdicao = null;
-    itensDepositoTemporario = [];
-    document.getElementById('depositoNome').value = '';
-    document.getElementById('depositoLocal').value = '';
-    document.getElementById('depositoNome').disabled = false;
-    document.getElementById('depositoResponsavelSelect').disabled = false;
-    document.querySelector('#criarDepositoSection h3').innerText = "CRIAR NOVO DEPÓSITO";
-    renderizarPreviewDeposito();
-    carregarDepositos();
-    carregarItens(); 
-    carregarItensParaKit(); 
-    carregarItensParaDeposito();
 }
 
 // ==========================================
@@ -1121,7 +1116,6 @@ function limparFormularioDeposito() {
 // ==========================================
 
 async function registrarAlteracaoDeposito(depositoId, depositoNome) {
-    // Pede ao usuário para descrever a alteração
     const alteracoes = prompt(`Auditoria Obrigatória:\nDescreva as alterações feitas no depósito "${depositoNome}"\n(Ex: "Retirei 2 LEDs para aula" ou "Adicionei 1 Arduino no depósito")`);
     
     if (alteracoes && alteracoes.trim() !== '') {
@@ -1163,7 +1157,6 @@ async function carregarRelatorios() {
         
         relatorios.forEach(r => {
             const dataFormatada = new Date(r.data).toLocaleString('pt-BR');
-            // Remove aspas simples e duplas para não quebrar a string do JavaScript no onclick
             const descSegura = r.alteracoes.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             
             tbody.innerHTML += `
@@ -1195,7 +1188,6 @@ async function deletarRelatorio(id) {
     }
 }
 
-// A MÁGICA DO PDF NATIVO
 function baixarRelatorioPDF(deposito, autor, data, alteracoes) {
     const conteudoHTML = `
         <!DOCTYPE html>
@@ -1238,15 +1230,127 @@ function baixarRelatorioPDF(deposito, autor, data, alteracoes) {
         </html>
     `;
     
-    // Abre uma nova janela invisível, escreve o layout e chama a função nativa de Imprimir/Salvar PDF
     const janelaPrint = window.open('', '', 'width=800,height=600');
     janelaPrint.document.write(conteudoHTML);
     janelaPrint.document.close();
     janelaPrint.focus();
     
-    // Um pequeno delay garante que os estilos CSS sejam aplicados antes de imprimir
     setTimeout(() => {
         janelaPrint.print();
         janelaPrint.close();
     }, 250);
+}
+
+// ==========================================
+// --- CAIXAS ORGANIZADORAS (AUTOMÁTICAS) ---
+// ==========================================
+
+async function carregarCaixas() {
+    const container = document.getElementById('listaCaixas');
+    if(!container) return;
+    container.innerHTML = '<p class="text-muted">Mapeando caixas no estoque...</p>';
+    
+    try {
+        const res = await authFetch(`${API_URL}/caixas`);
+        caixasMapeadas = await res.json();
+        container.innerHTML = '';
+        
+        caixasMapeadas.forEach((cx, index) => {
+            container.innerHTML += `
+                <div class="card kit-card" style="border-top: 3px solid #00bcd4; display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+                    <div>
+                        <h3 style="display:flex; align-items:center; gap:8px; margin-bottom: 5px;">
+                            <span class="material-icons" style="color: #00bcd4;">inventory_2</span> 
+                            ${cx.nome}
+                        </h3>
+                        <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 20px;">Contém ${cx.conteudo.length} tipo(s) de componente(s)</p>
+                    </div>
+                    <button onclick="abrirModalVisualizar('caixa', ${index})" class="btn-primary" style="width: 100%;">ABRIR CAIXA E PESQUISAR</button>
+                </div>
+            `;
+        });
+        
+        if(caixasMapeadas.length === 0) container.innerHTML = '<p class="text-muted">Nenhum item encontrado no estoque com a localização "Caixa".</p>';
+    } catch(e) { container.innerHTML = '<p class="text-danger">Erro ao carregar caixas.</p>'; }
+}
+
+// ==========================================
+// --- LÓGICA DO MODAL UNIVERSAL COM PESQUISA ---
+// ==========================================
+
+function abrirModalVisualizar(tipo, index) {
+    let titulo, info, icon, cor, itens;
+
+    // Define o estilo e os dados do Modal baseado no botão que foi clicado
+    if (tipo === 'kit') {
+        const k = kitsMapeados[index];
+        titulo = k.nome;
+        info = `Localização oficial: ${k.localizacao}`;
+        icon = 'build';
+        cor = '#ffffff';
+        itens = k.conteudoParsed;
+    } else if (tipo === 'deposito') {
+        const d = depositosMapeados[index];
+        titulo = d.nome;
+        info = `Acesso físico: ${d.localizacao}`;
+        icon = 'inventory';
+        cor = d.responsavelNome ? '#d32f2f' : '#4caf50';
+        itens = d.conteudoParsed;
+    } else if (tipo === 'caixa') {
+        const c = caixasMapeadas[index];
+        titulo = c.nome;
+        info = `Inventário mapeado automaticamente.`;
+        icon = 'inventory_2';
+        cor = '#00bcd4';
+        itens = c.conteudo;
+    }
+
+    // Configura os textos e cores do Modal
+    document.getElementById('modalDetalhesNome').innerHTML = `<span class="material-icons" style="color: ${cor};">${icon}</span> ${titulo}`;
+    document.getElementById('modalDetalhesInfo').innerText = info;
+    document.querySelector('#modalDetalhes .card').style.borderTopColor = cor;
+    
+    // Salva os dados na memória para a barra de pesquisa usar
+    dadosModalAtual = itens || [];
+    document.getElementById('buscaModal').value = ''; // Limpa pesquisa anterior
+    renderizarItensModal(''); // Mostra todos os itens
+
+    // Exibe a janela
+    const modal = document.getElementById('modalDetalhes');
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+}
+
+function fecharModalDetalhes() {
+    const modal = document.getElementById('modalDetalhes');
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+}
+
+function filtrarItensModal(termo) {
+    renderizarItensModal(termo.toLowerCase()); // Pesquisa não case-sensitive
+}
+
+function renderizarItensModal(termoBusca) {
+    const lista = document.getElementById('modalDetalhesLista');
+    
+    // Filtra pelo nome do item ou pela especificação
+    const itensFiltrados = dadosModalAtual.filter(i => 
+        i.nome.toLowerCase().includes(termoBusca) || 
+        (i.especificacao && i.especificacao.toLowerCase().includes(termoBusca))
+    );
+
+    lista.innerHTML = itensFiltrados.map(i => `
+        <li style="padding: 10px 0; border-bottom: 1px dashed var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <strong>${i.nome}</strong> 
+                <div style="font-size:0.75rem; color:var(--text-muted)">${i.especificacao || 'S/ Especificação'}</div>
+            </div>
+            <span style="font-weight: 600; font-size: 0.9rem; background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-subtle);">${i.quantidade} UN</span>
+        </li>
+    `).join('');
+
+    if(itensFiltrados.length === 0) {
+        lista.innerHTML = '<li class="text-muted text-center" style="padding: 20px 0;">Nenhum item correspondente encontrado.</li>';
+    }
 }

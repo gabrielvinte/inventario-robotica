@@ -239,25 +239,60 @@ app.post('/api/itens', verificarToken, async (req, res) => {
 app.get('/api/itens', verificarToken, async (req, res) => {
     try {
         const { busca } = req.query;
-        let query = 'SELECT * FROM itens ORDER BY data DESC';
+        // Tiramos o ORDER BY do SQL para fazer a ordenação inteligente no JavaScript
+        let query = 'SELECT * FROM itens'; 
         let params = [];
 
         if (busca) {
-            query = 'SELECT * FROM itens WHERE nome LIKE ? OR especificacao LIKE ? OR localizacao LIKE ? ORDER BY data DESC';
+            query = 'SELECT * FROM itens WHERE nome LIKE ? OR especificacao LIKE ? OR localizacao LIKE ?';
             const termo = `%${busca}%`;
             params = [termo, termo, termo];
         }
         const [itens] = await pool.query(query, params);
+
+        // --- ORDENAÇÃO INTELIGENTE (NATURAL SORT) ---
+        itens.sort((a, b) => {
+            const locA = (a.localizacao || '').trim().toLowerCase();
+            const locB = (b.localizacao || '').trim().toLowerCase();
+
+            // Função para classificar o nível de prioridade da localização
+            function getCategory(loc) {
+                if (!loc || loc === '-' || loc === 'sem localização' || loc === 'sem localizacao') return 1; // 1º Sem local
+                if (loc.startsWith('caixa')) return 2; // 2º Caixas
+                if (loc.startsWith('depósito') || loc.startsWith('deposito')) return 3; // 3º Depósitos
+                return 4; // 4º Outros (Prateleiras, Armários, etc)
+            }
+
+            const catA = getCategory(locA);
+            const catB = getCategory(locB);
+
+            // Se forem de categorias diferentes, ordena pela categoria (1, depois 2, depois 3...)
+            if (catA !== catB) {
+                return catA - catB;
+            }
+
+            // Se forem da mesma categoria, usa a ordenação alfanumérica natural do JavaScript
+            // Isso garante que "Caixa 2" venha antes de "Caixa 10"
+            const locCompare = locA.localeCompare(locB, undefined, { numeric: true, sensitivity: 'base' });
+            
+            // Se as localizações forem exatamentes iguais, organiza em ordem alfabética pelo nome do item
+            if (locCompare !== 0) {
+                return locCompare;
+            }
+            return (a.nome || '').localeCompare(b.nome || '', undefined, { sensitivity: 'base' });
+        });
+
         res.json(itens);
-    } catch (error) { res.status(500).json({ error: "Erro ao buscar." }); }
+    } catch (error) { 
+        res.status(500).json({ error: "Erro ao buscar itens do inventário." }); 
+    }
 });
 
+// --- ROTA DE ATUALIZAÇÃO REVISADA (NOME E ESPECIFICAÇÃO) ---
 app.patch('/api/itens/:id', [verificarToken, podeGerenciar], async (req, res) => {
     try {
-        // Verifica o que o front-end mandou no "body" da requisição
-        const { quantidade, localizacao } = req.body;
+        const { quantidade, localizacao, nome, especificacao } = req.body;
         
-        // Montamos a query de forma dinâmica
         let query = '';
         let params = [];
 
@@ -267,11 +302,16 @@ app.patch('/api/itens/:id', [verificarToken, podeGerenciar], async (req, res) =>
         } else if (localizacao !== undefined) {
             query = 'UPDATE itens SET localizacao = ? WHERE id = ?';
             params = [localizacao, req.params.id];
+        } else if (nome !== undefined) {
+            query = 'UPDATE itens SET nome = ? WHERE id = ?';
+            params = [nome, req.params.id];
+        } else if (especificacao !== undefined) {
+            query = 'UPDATE itens SET especificacao = ? WHERE id = ?';
+            params = [especificacao, req.params.id];
         } else {
             return res.status(400).json({ error: "Nenhum dado válido enviado para atualização." });
         }
 
-        // Executa a query montada
         await pool.query(query, params);
         res.json({ message: "Atualizado com sucesso!" });
         
@@ -344,6 +384,27 @@ app.get('/api/kits', verificarToken, async (req, res) => {
             LEFT JOIN solicitacoes s ON k.id = s.kitId AND s.status = 'ativo'
         `;
         const [kits] = await pool.query(query);
+
+        // --- RESGATE AUTOMÁTICO DE ESPECIFICAÇÕES ANTIGAS ---
+        const [itensEstoque] = await pool.query('SELECT id, especificacao FROM itens');
+        const mapaSpecs = {};
+        itensEstoque.forEach(i => mapaSpecs[i.id] = i.especificacao);
+
+        kits.forEach(kit => {
+            if (kit.conteudo) {
+                let conteudoArray = typeof kit.conteudo === 'string' ? JSON.parse(kit.conteudo) : kit.conteudo;
+                conteudoArray = conteudoArray.map(item => {
+                    // Se o item não tem especificação salva, puxa do banco de dados principal
+                    if (!item.especificacao && mapaSpecs[item.itemId]) {
+                        item.especificacao = mapaSpecs[item.itemId];
+                    }
+                    return item;
+                });
+                kit.conteudo = JSON.stringify(conteudoArray); // Devolve como string para o formato original esperado pelo front
+            }
+        });
+        // ----------------------------------------------------
+
         res.json(kits);
     } catch (error) { 
         console.error("🔴 ERRO CRÍTICO NA ROTA /api/kits:", error);
@@ -543,6 +604,27 @@ app.post('/api/depositos', [verificarToken, podeGerenciar], async (req, res) => 
 app.get('/api/depositos', verificarToken, async (req, res) => {
     try {
         const [depositos] = await pool.query('SELECT * FROM depositos');
+
+        // --- RESGATE AUTOMÁTICO DE ESPECIFICAÇÕES ANTIGAS ---
+        const [itensEstoque] = await pool.query('SELECT id, especificacao FROM itens');
+        const mapaSpecs = {};
+        itensEstoque.forEach(i => mapaSpecs[i.id] = i.especificacao);
+
+        depositos.forEach(dep => {
+            if (dep.conteudo) {
+                let conteudoArray = typeof dep.conteudo === 'string' ? JSON.parse(dep.conteudo) : dep.conteudo;
+                conteudoArray = conteudoArray.map(item => {
+                    // Se o item não tem especificação salva, puxa do banco de dados principal
+                    if (!item.especificacao && mapaSpecs[item.itemId]) {
+                        item.especificacao = mapaSpecs[item.itemId];
+                    }
+                    return item;
+                });
+                dep.conteudo = JSON.stringify(conteudoArray); // Devolve como string para o formato original esperado pelo front
+            }
+        });
+        // ----------------------------------------------------
+
         res.json(depositos);
     } catch (error) { res.status(500).json({ error: "Erro ao listar depósitos" }); }
 });
@@ -673,6 +755,47 @@ app.put('/api/depositos/:id', verificarToken, async (req, res) => {
         await connection.rollback();
         res.status(400).json({ error: e.message });
     } finally { connection.release(); }
+});
+
+// ==========================================
+// --- ROTAS DE CAIXAS (AUTOMÁTICAS) ---
+// ==========================================
+
+app.get('/api/caixas', verificarToken, async (req, res) => {
+    try {
+        // Busca TODOS os itens onde a localização contenha a palavra "caixa" (independente de maiúscula/minúscula)
+        const [itens] = await pool.query("SELECT id, nome, especificacao, quantidade, localizacao FROM itens WHERE LOWER(localizacao) LIKE '%caixa%'");
+        
+        // Agrupa os itens magicamente usando JavaScript
+        const caixasMap = {};
+        
+        itens.forEach(item => {
+            // Usa o nome da localização em maiúsculo como chave para agrupar (ex: "CAIXA 9")
+            const locNormalizada = item.localizacao.trim().toUpperCase();
+            
+            if (!caixasMap[locNormalizada]) {
+                caixasMap[locNormalizada] = {
+                    nome: item.localizacao.toUpperCase(), 
+                    conteudo: []
+                };
+            }
+            
+            caixasMap[locNormalizada].conteudo.push({
+                id: item.id,
+                nome: item.nome,
+                especificacao: item.especificacao,
+                quantidade: item.quantidade
+            });
+        });
+
+        // Transforma o mapa em uma lista e organiza em ordem alfabética
+        const caixasArray = Object.values(caixasMap).sort((a, b) => a.nome.localeCompare(b.nome));
+        res.json(caixasArray);
+        
+    } catch (error) { 
+        console.error(error);
+        res.status(500).json({ error: "Erro ao mapear as caixas." }); 
+    }
 });
 
 // --- AUXILIARES ---
