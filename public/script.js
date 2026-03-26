@@ -2,7 +2,16 @@ const API_URL = '/api';
 
 let isRegistering = false;
 let token = localStorage.getItem('token');
-let currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+let currentUser = {};
+
+try {
+    currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+} catch (e) {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    token = null;
+}
+
 let itensKitTemporario = [];
 let itensDepositoTemporario = [];
 
@@ -27,11 +36,9 @@ document.getElementById('toggleAuth').addEventListener('click', (e) => {
     e.preventDefault();
     isRegistering = !isRegistering;
     
-    // Atualiza Título e Botão Principal
     document.getElementById('auth-title').innerText = isRegistering ? "CRIAR CONTA" : "EXARIS";
     document.getElementById('btnAuthAction').innerText = isRegistering ? "CADASTRAR" : "INICIAR SESSÃO";
     
-    // Atualiza a mensagem de alternância e o link
     if (isRegistering) {
         document.getElementById('toggleMsg').innerText = "JÁ POSSUI ACESSO?";
         document.getElementById('toggleAuth').innerText = "FAZER LOGIN";
@@ -52,29 +59,15 @@ formAuth.addEventListener('submit', async (e) => {
         const nascimento = document.getElementById('authNasc').value;
         const cargo = document.getElementById('authCargo').value;
         
-        // --- TRAVA DE VALIDAÇÃO DE DATA ---
-        if (!nascimento) {
-            return alert("⚠️ Por favor, preencha sua data de nascimento.");
-        }
+        if (!nascimento) return alert("⚠️ Por favor, preencha sua data de nascimento.");
         const dataNasc = new Date(nascimento + 'T12:00:00');
         const hoje = new Date();
-        if (dataNasc >= hoje) {
-            return alert("⚠️ A data de nascimento não pode ser no futuro ou no dia de hoje.");
-        }
+        if (dataNasc >= hoje) return alert("⚠️ A data de nascimento não pode ser no futuro ou no dia de hoje.");
         const idadeValidacao = hoje.getFullYear() - dataNasc.getFullYear();
-        if (idadeValidacao > 120 || idadeValidacao < 10) {
-            return alert("⚠️ Por favor, insira uma data de nascimento válida (idade entre 10 e 120 anos).");
-        }
-        // ---------------------------------------
+        if (idadeValidacao > 120 || idadeValidacao < 10) return alert("⚠️ Por favor, insira uma data de nascimento válida.");
 
-        // --- NOVA TRAVA DE VALIDAÇÃO DE SENHA ---
-        // Essa regra (regex) procura por qualquer um desses símbolos na senha digitada
         const contemSimbolo = /[!@#$%^&*(),.?":{}|<>\-_+=]/.test(senha);
-        
-        if (senha.length < 8 || !contemSimbolo) {
-            return alert("⚠️ Segurança fraca: A senha deve ter no mínimo 8 caracteres e incluir pelo menos um símbolo especial (ex: @, !, #, $, etc).");
-        }
-        // ---------------------------------------
+        if (senha.length < 8 || !contemSimbolo) return alert("⚠️ Segurança fraca: A senha deve ter no mínimo 8 caracteres e incluir pelo menos um símbolo especial.");
 
         try {
             const res = await fetch(`${API_URL}/auth/register`, {
@@ -90,8 +83,6 @@ formAuth.addEventListener('submit', async (e) => {
                     window.location.reload();
                 } else {
                     document.getElementById('toggleAuth').click(); 
-                    
-                    // Bônus: Limpar os campos digitados para a tela de login aparecer "limpa"
                     document.getElementById('authNome').value = '';
                     document.getElementById('authSenha').value = '';
                     document.getElementById('authNasc').value = '';
@@ -99,9 +90,7 @@ formAuth.addEventListener('submit', async (e) => {
             } else {
                 alert(data.error);
             }
-        } catch (err) { 
-            alert("Erro ao registrar"); 
-        }
+        } catch (err) { alert("Erro ao registrar"); }
     } else {
         try {
             const res = await fetch(`${API_URL}/auth/login`, {
@@ -130,23 +119,25 @@ function logout() {
 function mostrarLogin() {
     authScreen.classList.remove('hidden');
     appScreen.classList.add('hidden');
-    adminScreen.classList.add('hidden');
+    if(adminScreen) adminScreen.classList.add('hidden');
+    const relatorios = document.getElementById('relatorios-screen');
+    if(relatorios) relatorios.classList.add('hidden');
 }
 
 function mostrarApp() {
     authScreen.classList.add('hidden');
     appScreen.classList.remove('hidden');
-    adminScreen.classList.add('hidden');
+    if(adminScreen) adminScreen.classList.add('hidden');
+    const relatorios = document.getElementById('relatorios-screen');
+    if(relatorios) relatorios.classList.add('hidden');
 
     document.getElementById('userDisplay').innerText = currentUser.nome;
     document.getElementById('roleDisplay').innerText = currentUser.cargo.toUpperCase();
 
-    // Aplica a regra do required na localização baseada no cargo
     configurarRegrasFormulario(currentUser);
 
     const ehStaff = ['admin', 'professor', 'coordenador'].includes(currentUser.cargo);
     
-    // Controle de visibilidade das seções baseadas no cargo
     if (currentUser.cargo === 'admin') {
         document.getElementById('btnRelatorios').classList.remove('hidden');
     }
@@ -155,9 +146,8 @@ function mostrarApp() {
         document.getElementById('manageMaterialsSection').classList.remove('hidden');
         document.getElementById('painelSolicitacoes').classList.remove('hidden');
         document.getElementById('criarKitSection').classList.remove('hidden');
-        document.getElementById('criarDepositoSection').classList.remove('hidden'); // DEPÓSITOS
+        document.getElementById('criarDepositoSection').classList.remove('hidden'); 
         
-        // Botão de admin aparece para staff (para aprovação)
         document.getElementById('btnAdminPanel').classList.remove('hidden');
         document.getElementById('btnAdminPanel').onclick = mostrarAdminPanel;
     } else {
@@ -168,10 +158,10 @@ function mostrarApp() {
     carregarItens();
     carregarKits();
     carregarItensParaKit();
-    carregarUsuariosParaDeposito(); // DEPÓSITOS
-    carregarItensParaDeposito();    // DEPÓSITOS
-    carregarDepositos();            // DEPÓSITOS
-    carregarCaixas();               // NOVA ABA
+    carregarUsuariosParaDeposito(); 
+    carregarItensParaDeposito();    
+    carregarDepositos();            
+    carregarCaixas();               
     
     if(ehStaff) carregarSolicitacoes();
 }
@@ -180,12 +170,12 @@ function mudarAba(aba) {
     document.getElementById('view-estoque').classList.add('hidden');
     document.getElementById('view-kits').classList.add('hidden');
     document.getElementById('view-depositos').classList.add('hidden');
-    document.getElementById('view-caixas').classList.add('hidden'); // ADICIONADO
+    document.getElementById('view-caixas').classList.add('hidden'); 
     
     document.getElementById('tab-estoque').classList.remove('active');
     document.getElementById('tab-kits').classList.remove('active');
     document.getElementById('tab-depositos').classList.remove('active');
-    document.getElementById('tab-caixas').classList.remove('active'); // ADICIONADO
+    document.getElementById('tab-caixas').classList.remove('active'); 
 
     document.getElementById(`view-${aba}`).classList.remove('hidden');
     document.getElementById(`tab-${aba}`).classList.add('active');
@@ -223,11 +213,9 @@ async function authFetch(url, options = {}) {
 
     const response = await fetch(url, options);
 
-    // Se o servidor disser que o acesso foi revogado (403 ou 401)
     if (response.status === 401 || response.status === 403) {
         alert("Sua sessão expirou ou seu acesso foi revogado.");
         logout(); 
-        // Lança um erro para impedir que a função chamadora tente usar o 'response'
         throw new Error("Sessão inválida."); 
     }
 
@@ -241,10 +229,9 @@ async function carregarMateriaisCombo() {
     if(res.ok) {
         const materiais = await res.json();
         
-        // Atualiza todos os selects de materiais na página
         const selects = document.querySelectorAll('.select-material-global');
         selects.forEach(sel => {
-            const valorAtual = sel.value; // Salva seleção atual
+            const valorAtual = sel.value; 
             sel.innerHTML = '<option value="">Selecione um material...</option>';
             materiais.forEach(m => {
                 const opt = document.createElement('option');
@@ -252,7 +239,7 @@ async function carregarMateriaisCombo() {
                 opt.innerText = m.nome;
                 sel.appendChild(opt);
             });
-            if(valorAtual) sel.value = valorAtual; // Restaura seleção
+            if(valorAtual) sel.value = valorAtual; 
         });
 
         const ehStaff = ['admin', 'professor', 'coordenador'].includes(currentUser.cargo);
@@ -283,8 +270,8 @@ async function adicionarMaterialLista() {
 
         if(res.ok) {
             alert("✅ Material adicionado à lista com sucesso!");
-            input.value = ''; // Limpa o campo
-            carregarMateriaisCombo(); // Atualiza a lista visual e os selects
+            input.value = ''; 
+            carregarMateriaisCombo(); 
         } else {
             alert("❌ Erro: Este material provavelmente já existe na lista.");
         }
@@ -302,21 +289,17 @@ async function removerMaterialLista(id) {
 
 // --- ESTOQUE (INVENTÁRIO) ---
 
-let controleBuscaItens = 0; // Variável para controlar a ordem das pesquisas
+let controleBuscaItens = 0; 
 
 async function carregarItens(termo = '') {
-    // Incrementa a "senha" a cada vez que você digita uma letra
     const idBuscaAtual = ++controleBuscaItens; 
     
     const res = await authFetch(`${API_URL}/itens?busca=${termo}`);
     if (!res.ok) return;
     const itens = await res.json();
 
-    // TRAVA DE CONCORRÊNCIA: Se você já digitou outra letra enquanto o servidor pensava,
-    // essa resposta está atrasada, então nós a ignoramos e não desenhamos nada.
     if (idBuscaAtual !== controleBuscaItens) return;
 
-    // SÓ LIMPAMOS A TABELA AQUI, quando temos certeza de que é a resposta certa
     const tabela = document.getElementById('tabelaItens');
     tabela.innerHTML = ''; 
     
@@ -349,7 +332,7 @@ async function carregarItens(termo = '') {
          tabela.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum componente encontrado no inventário.</td></tr>';
     }
 }
-// EDITA AS PROPRIEDADES DO ITEM (Nome, Espec ou Local)
+
 async function editarItem(idItem, nomeAtual, especAtual, localAtual) {
     const opcao = prompt(`Editando: ${nomeAtual}\nO que você deseja alterar no componente?\n\nDigite o número:\n1 - Nome do Material\n2 - Especificação Técnica\n3 - Localização`, "1");
 
@@ -411,7 +394,7 @@ async function carregarItensParaKit() {
                 opt.value = item.id;
                 opt.dataset.nome = item.nome;
                 opt.dataset.max = item.quantidade;
-                opt.dataset.especificacao = item.especificacao || ''; // GUARDA A ESPECIFICAÇÃO
+                opt.dataset.especificacao = item.especificacao || ''; 
                 opt.innerText = `${item.nome} ${item.especificacao ? '('+item.especificacao+')' : ''} - Restam: ${item.quantidade}`;
                 select.appendChild(opt);
             }
@@ -434,27 +417,27 @@ document.getElementById('formItem').addEventListener('submit', async (e) => {
 
     await authFetch(`${API_URL}/itens`, { method: 'POST', body: JSON.stringify(item) });
     document.getElementById('formItem').reset();
-    document.getElementById('nome').value = ""; // Limpa a seleção forçadamente
+    document.getElementById('nome').value = ""; 
     carregarItens();
-    carregarItensParaKit(); // Mantém o dropdown de kits sincronizado
-    carregarItensParaDeposito(); // Mantém o dropdown de depósitos sincronizado
-    carregarCaixas(); // Atualiza a aba das Caixas
+    carregarItensParaKit(); 
+    carregarItensParaDeposito(); 
+    carregarCaixas(); 
 });
 
 async function alterarQtd(id, novaQtd) {
     if (novaQtd < 0) return;
     await authFetch(`${API_URL}/itens/${id}`, { method: 'PATCH', body: JSON.stringify({ quantidade: novaQtd }) });
     carregarItens(document.getElementById('busca').value);
-    carregarItensParaKit(); // Mantém o dropdown de kits sincronizado
+    carregarItensParaKit(); 
     carregarItensParaDeposito();
-    carregarCaixas(); // Atualiza a aba das Caixas
+    carregarCaixas(); 
 }
-// NOVA FUNÇÃO: Pergunta a quantidade antes de somar/subtrair
+
 async function solicitarAlteracaoQtd(idItem, qtdAtual, nomeItem, operacao) {
     const textoOperacao = operacao === 'add' ? 'ADICIONAR' : 'REMOVER';
     const input = prompt(`Quantas unidades de "${nomeItem}" você deseja ${textoOperacao}?`, "1");
 
-    if (input === null || input.trim() === "") return; // Se o usuário cancelar
+    if (input === null || input.trim() === "") return; 
 
     const qtdInformada = parseInt(input);
 
@@ -468,7 +451,6 @@ async function solicitarAlteracaoQtd(idItem, qtdAtual, nomeItem, operacao) {
         return alert(`❌ Operação negada! Você está tentando remover ${qtdInformada}, mas só existem ${qtdAtual} no estoque.`);
     }
 
-    // Chama a função existente que envia para o servidor
     alterarQtd(idItem, novaQtdFinal);
 }
 
@@ -478,20 +460,16 @@ async function deletarItem(id) {
             const res = await authFetch(`${API_URL}/itens/${id}`, { method: 'DELETE' }); 
             
             if (res.ok) {
-                // Deu tudo certo, recarrega a tela
                 carregarItens(); 
                 carregarItensParaKit(); 
                 carregarItensParaDeposito();
-                carregarCaixas(); // Atualiza a aba das Caixas
+                carregarCaixas(); 
             } else {
-                // Ops, deu ruim! Vamos ver o que o servidor disse:
                 const erro = await res.json();
                 alert(`❌ Erro do Servidor: ${res.status} - ${erro.error || "Motivo desconhecido"}`);
-                console.error("Erro completo da exclusão:", erro);
             }
         } catch (e) {
             alert("❌ Falha na comunicação com o servidor ao tentar excluir.");
-            console.error("Erro de rede:", e);
         }
     }
 }
@@ -506,7 +484,7 @@ function adicionarItemAoKit() {
     const opcaoSelecionada = select.options[select.selectedIndex];
     const itemId = select.value;
     const nome = opcaoSelecionada.dataset.nome;
-    const especificacao = opcaoSelecionada.dataset.especificacao; // RESGATA A ESPECIFICAÇÃO
+    const especificacao = opcaoSelecionada.dataset.especificacao; 
     const maxQtd = parseInt(opcaoSelecionada.dataset.max);
     const qtdRequerida = parseInt(document.getElementById('kitMaterialQtd').value);
 
@@ -520,7 +498,6 @@ function adicionarItemAoKit() {
         if (novaQtd > maxQtd) return alert(`Limite excedido! O total (${novaQtd}) passa do seu estoque atual (${maxQtd}).`);
         itensKitTemporario[indexExistente].quantidade = novaQtd;
     } else {
-        // GUARDA A ESPECIFICAÇÃO NO OBJETO
         itensKitTemporario.push({ itemId: itemId, nome: nome, especificacao: especificacao, quantidade: qtdRequerida });
     }
     
@@ -562,7 +539,7 @@ async function salvarKit() {
             carregarItens(); 
             carregarItensParaKit(); 
             carregarItensParaDeposito();
-            carregarCaixas(); // Atualiza a aba das Caixas
+            carregarCaixas(); 
         } else {
             const erro = await res.json();
             alert("❌ Erro ao criar kit: " + (erro.error || "Erro desconhecido"));
@@ -596,7 +573,7 @@ async function carregarKits() {
                 if (Array.isArray(parsed)) conteudoArray = parsed;
             } catch(e) {}
             
-            kit.conteudoParsed = conteudoArray; // Salva para o Modal ler depois
+            kit.conteudoParsed = conteudoArray; 
             const estaAlugado = kit.alugadoPor != null;
 
             let cardHTML = `
@@ -659,7 +636,6 @@ async function editarLocalizacaoKit(idKit, localAtual) {
             });
             
             if(res.ok) {
-                // Atualiza a visualização das abas de kits
                 carregarKits(); 
             } else {
                 alert("❌ Erro ao atualizar a localização do kit no servidor.");
@@ -755,33 +731,34 @@ async function renovarEmprestimo(id) {
 
 // --- ADMIN USERS ---
 async function carregarUsuariosAdmin() {
-    const tabela = document.getElementById('tabelaUsers');
-    if(!tabela) return;
-    tabela.innerHTML = 'Carregando...';
+    const tbody = document.getElementById('tabelaUsers');
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Carregando...</td></tr>';
     
     try {
         const res = await authFetch(`${API_URL}/admin/users`);
-        const users = await res.json();
         
-        tabela.innerHTML = '<thead><tr><th>Nome</th><th>Idade</th><th>Cargo</th><th>Status</th><th>Ação</th></tr></thead><tbody>';
+        if (!res.ok) {
+            const err = await res.json();
+            tbody.innerHTML = `<tr><td colspan="5" class="text-danger text-center">Erro: ${err.error}</td></tr>`;
+            return;
+        }
+
+        const users = await res.json();
+        let htmlTbody = '';
         
         users.forEach(u => {
             let textoIdade = "N/I"; 
-            
             if (u.nascimento) {
-                const dataNasc = new Date(u.nascimento.includes('T') ? u.nascimento : u.nascimento + 'T12:00:00');
-                const hoje = new Date();
-                
-                let idade = hoje.getFullYear() - dataNasc.getFullYear();
-                const mes = hoje.getMonth() - dataNasc.getMonth();
-                
-                if (mes < 0 || (mes === 0 && hoje.getDate() < dataNasc.getDate())) {
-                    idade--;
-                }
-                textoIdade = `${idade} anos`;
+                try {
+                    const dataNasc = new Date(u.nascimento.includes('T') ? u.nascimento : u.nascimento + 'T12:00:00');
+                    const hoje = new Date();
+                    let idade = hoje.getFullYear() - dataNasc.getFullYear();
+                    if (hoje.getMonth() < dataNasc.getMonth() || (hoje.getMonth() === dataNasc.getMonth() && hoje.getDate() < dataNasc.getDate())) idade--;
+                    textoIdade = `${idade} anos`;
+                } catch(e) {} 
             }
 
-           // Se for o Admin logado, ele vê um Select para mudar os cargos. Se for um professor olhando, ele vê só o texto.
             let cargoHTML = u.cargo.toUpperCase();
             if (currentUser.cargo === 'admin') {
                 cargoHTML = `
@@ -793,7 +770,7 @@ async function carregarUsuariosAdmin() {
                 `;
             }
 
-            tabela.innerHTML += `<tr>
+            htmlTbody += `<tr>
                     <td>${u.nome}</td>
                     <td><strong>${textoIdade}</strong></td>
                     <td>${cargoHTML}</td>
@@ -806,19 +783,20 @@ async function carregarUsuariosAdmin() {
         });
         
         if (users.length === 0) {
-            tabela.innerHTML += '<tr><td colspan="5" class="text-center text-muted">Nenhum usuário cadastrado.</td></tr>';
+            htmlTbody = '<tr><td colspan="5" class="text-center text-muted" style="padding: 20px;">Nenhum usuário encontrado.<br><small>(O seu perfil de Admin não aparece aqui)</small></td></tr>';
         }
         
-        tabela.innerHTML += '</tbody>';
+        tbody.innerHTML = htmlTbody;
+
     } catch (e) {
-        tabela.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Erro de conexão ao buscar usuários.</td></tr>';
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Falha ao buscar usuários.</td></tr>';
     }
 }
 
-// Nova função para processar a mudança de cargo
 async function alterarCargoUser(id, novoCargo) {
     if(!confirm(`Tem certeza que deseja promover/rebaixar este usuário para ${novoCargo.toUpperCase()}?`)) {
-        carregarUsuariosAdmin(); // Se cancelar, volta o select para o estado original
+        carregarUsuariosAdmin(); 
         return;
     }
     
@@ -830,7 +808,6 @@ async function alterarCargoUser(id, novoCargo) {
         
         if (res.ok) {
             alert("✅ Privilégios do usuário alterados com sucesso!");
-            // Se você promover alguém a admin, ele vai sumir desta lista, pois a lista oculta admins.
             carregarUsuariosAdmin(); 
         } else {
             const err = await res.json();
@@ -877,7 +854,6 @@ document.getElementById('togglePasswordIcon').addEventListener('click', function
     }
 });
 
-// Função para configurar as regras do formulário baseadas no cargo
 function configurarRegrasFormulario(usuarioLogado) {
     const inputLocalizacao = document.getElementById('localizacao');
     
@@ -903,7 +879,6 @@ async function carregarUsuariosParaDeposito() {
             const users = await res.json();
             select.innerHTML = '<option value="">SEM RESPONSÁVEL FIXO (Livre para Staff)</option>';
             users.forEach(u => {
-                // Se for admin, pula e não coloca na lista de seleção
                 if (u.cargo !== 'admin') {
                     select.innerHTML += `<option value="${u.id}">${u.nome} (${u.cargo.toUpperCase()})</option>`;
                 }
@@ -926,7 +901,7 @@ async function carregarItensParaDeposito() {
                 opt.value = item.id;
                 opt.dataset.nome = item.nome;
                 opt.dataset.max = item.quantidade;
-                opt.dataset.especificacao = item.especificacao || ''; // GUARDA A ESPECIFICAÇÃO
+                opt.dataset.especificacao = item.especificacao || ''; 
                 opt.innerText = `${item.nome} ${item.especificacao ? '('+item.especificacao+')' : ''} - Restam: ${item.quantidade}`;
                 select.appendChild(opt);
             }
@@ -941,7 +916,7 @@ function adicionarItemAoDeposito() {
     const opcaoSelecionada = select.options[select.selectedIndex];
     const itemId = select.value;
     const nome = opcaoSelecionada.dataset.nome;
-    const especificacao = opcaoSelecionada.dataset.especificacao; // RESGATA A ESPECIFICAÇÃO
+    const especificacao = opcaoSelecionada.dataset.especificacao; 
     const maxQtd = parseInt(opcaoSelecionada.dataset.max);
     const qtdRequerida = parseInt(document.getElementById('depositoMaterialQtd').value);
 
@@ -953,7 +928,6 @@ function adicionarItemAoDeposito() {
         if (novaQtd > maxQtd) return alert(`Limite excedido! O total (${novaQtd}) passa do seu estoque atual.`);
         itensDepositoTemporario[indexExistente].quantidade = novaQtd;
     } else {
-        // GUARDA A ESPECIFICAÇÃO NO OBJETO
         itensDepositoTemporario.push({ itemId: itemId, nome: nome, especificacao: especificacao, quantidade: qtdRequerida });
     }
     
@@ -984,7 +958,6 @@ async function salvarDeposito() {
     if(!nome || !local || itensDepositoTemporario.length === 0) return alert("Preencha nome, local e adicione itens.");
 
     if (depositoEmEdicao) {
-        // FLUXO DE EDIÇÃO (PUT)
         const motivo = prompt(`AUDITORIA OBRIGATÓRIA:\nJustifique a recontagem/alteração de itens no depósito "${nome}":`);
         if (!motivo) return alert("Alteração cancelada. A auditoria é obrigatória.");
 
@@ -1003,7 +976,6 @@ async function salvarDeposito() {
         } catch (e) { alert("Erro de connection."); }
 
     } else {
-        // FLUXO DE CRIAÇÃO ORIGINAL (POST)
         try {
             const res = await authFetch(`${API_URL}/depositos`, {
                 method: 'POST',
@@ -1048,7 +1020,7 @@ async function carregarDepositos() {
 
         depositosMapeados.forEach((dep, index) => {
             let conteudoArray = typeof dep.conteudo === 'string' ? JSON.parse(dep.conteudo) : dep.conteudo;
-            dep.conteudoParsed = conteudoArray; // Salva para o Modal
+            dep.conteudoParsed = conteudoArray; 
 
             let podeAlterar = false;
             let ehAdmin = currentUser.cargo === 'admin';
@@ -1180,26 +1152,34 @@ function voltarAoAppDeRelatorios() {
     document.getElementById('relatorios-screen').classList.add('hidden');
     document.getElementById('app-screen').classList.remove('hidden');
 }
-
 async function carregarRelatorios() {
     const tbody = document.getElementById('tabelaRelatorios');
-    tbody.innerHTML = '<tr><td colspan="5">Carregando auditoria...</td></tr>';
+    if(!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Carregando auditoria...</td></tr>';
     
     try {
         const res = await authFetch(`${API_URL}/relatorios`);
+        
+        if (!res.ok) {
+            const err = await res.json();
+            tbody.innerHTML = `<tr><td colspan="5" class="text-danger text-center">Erro: ${err.error}</td></tr>`;
+            return;
+        }
+
         const relatorios = await res.json();
-        tbody.innerHTML = '';
+        let htmlTbody = '';
         
         relatorios.forEach(r => {
             const dataFormatada = new Date(r.data).toLocaleString('pt-BR');
-            const descSegura = r.alteracoes.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            const textoAlteracao = r.alteracoes || 'Sem descrição';
+            const descSegura = textoAlteracao.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             
-            tbody.innerHTML += `
+            htmlTbody += `
                 <tr>
                     <td>${dataFormatada}</td>
                     <td><strong>${r.depositoNome}</strong></td>
                     <td>${r.autorNome}</td>
-                    <td>${r.alteracoes}</td>
+                    <td>${textoAlteracao}</td>
                     <td>
                         <button onclick="baixarRelatorioPDF('${r.depositoNome}', '${r.autorNome}', '${dataFormatada}', '${descSegura}')" class="btn-primary btn-small">Salvar PDF</button>
                         <button onclick="deletarRelatorio(${r.id})" class="btn-delete btn-small">Excluir</button>
@@ -1209,10 +1189,13 @@ async function carregarRelatorios() {
         });
         
         if (relatorios.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum relatório encontrado.</td></tr>';
+            htmlTbody = '<tr><td colspan="5" class="text-center text-muted" style="padding: 20px;">Nenhum relatório encontrado no histórico.</td></tr>';
         }
+        tbody.innerHTML = htmlTbody;
+        
     } catch(e) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-danger">Erro ao carregar o histórico.</td></tr>';
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Erro ao carregar o histórico.</td></tr>';
     }
 }
 
@@ -1279,7 +1262,6 @@ function baixarRelatorioPDF(deposito, autor, data, alteracoes) {
 // ==========================================
 // --- CAIXAS ORGANIZADORAS (AUTOMÁTICAS) ---
 // ==========================================
-
 async function carregarCaixas() {
     const container = document.getElementById('listaCaixas');
     if(!container) return;
@@ -1310,13 +1292,12 @@ async function carregarCaixas() {
 }
 
 // ==========================================
-// --- LÓGICA DO MODAL UNIVERSAL COM PESQUISA --- 
+// --- LÓGICA DO MODAL UNIVERSAL COM PESQUISA ---
 // ==========================================
 
 function abrirModalVisualizar(tipo, index) {
     let titulo, info, icon, cor, itens;
 
-    // Define o estilo e os dados do Modal baseado no botão que foi clicado
     if (tipo === 'kit') {
         const k = kitsMapeados[index];
         titulo = k.nome;
@@ -1340,17 +1321,14 @@ function abrirModalVisualizar(tipo, index) {
         itens = c.conteudo;
     }
 
-    // Configura os textos e cores do Modal
     document.getElementById('modalDetalhesNome').innerHTML = `<span class="material-icons" style="color: ${cor};">${icon}</span> ${titulo}`;
     document.getElementById('modalDetalhesInfo').innerText = info;
     document.querySelector('#modalDetalhes .card').style.borderTopColor = cor;
     
-    // Salva os dados na memória para a barra de pesquisa usar
     dadosModalAtual = itens || [];
-    document.getElementById('buscaModal').value = ''; // Limpa pesquisa anterior
-    renderizarItensModal(''); // Mostra todos os itens
+    document.getElementById('buscaModal').value = ''; 
+    renderizarItensModal(''); 
 
-    // Exibe a janela
     const modal = document.getElementById('modalDetalhes');
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
@@ -1363,13 +1341,12 @@ function fecharModalDetalhes() {
 }
 
 function filtrarItensModal(termo) {
-    renderizarItensModal(termo.toLowerCase()); // Pesquisa não case-sensitive
+    renderizarItensModal(termo.toLowerCase()); 
 }
 
 function renderizarItensModal(termoBusca) {
     const lista = document.getElementById('modalDetalhesLista');
     
-    // Filtra pelo nome do item ou pela especificação
     const itensFiltrados = dadosModalAtual.filter(i => 
         i.nome.toLowerCase().includes(termoBusca) || 
         (i.especificacao && i.especificacao.toLowerCase().includes(termoBusca))

@@ -37,66 +37,22 @@ async function inicializarBanco() {
                 aprovado BOOLEAN DEFAULT FALSE
             )
         `);
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS materiais (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                nome VARCHAR(255) UNIQUE NOT NULL
-            )
-        `);
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS itens (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                nome VARCHAR(255) NOT NULL,
-                especificacao VARCHAR(255),
-                localizacao VARCHAR(255) NOT NULL,
-                quantidade INT DEFAULT 0,
-                criadoPor VARCHAR(255),
-                data DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS kits (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                nome VARCHAR(255) NOT NULL,
-                localizacao VARCHAR(255) NOT NULL,
-                conteudo JSON,
-                criadoPor VARCHAR(255)
-            )
-        `);
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS solicitacoes (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                kitId INT,
-                kitNome VARCHAR(255),
-                userId INT,
-                userNome VARCHAR(255),
-                dataRetirada DATETIME DEFAULT CURRENT_TIMESTAMP,
-                prazoDevolucao DATETIME NOT NULL,
-                status ENUM('ativo', 'devolvido') DEFAULT 'ativo'
-            )
-        `);
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS depositos (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                nome VARCHAR(255) NOT NULL,
-                localizacao VARCHAR(255) NOT NULL,
-                conteudo JSON,
-                criadoPor VARCHAR(255),
-                responsavelId INT DEFAULT NULL,
-                responsavelNome VARCHAR(255) DEFAULT NULL
-            )
-        `);
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS relatorios (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                depositoId INT,
-                depositoNome VARCHAR(255),
-                autorNome VARCHAR(255),
-                alteracoes TEXT,
-                data DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
+        await pool.query(`CREATE TABLE IF NOT EXISTS materiais (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(255) UNIQUE NOT NULL)`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS itens (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(255) NOT NULL, especificacao VARCHAR(255), localizacao VARCHAR(255) NOT NULL, quantidade INT DEFAULT 0, criadoPor VARCHAR(255), data DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS kits (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(255) NOT NULL, localizacao VARCHAR(255) NOT NULL, conteudo JSON, criadoPor VARCHAR(255))`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS solicitacoes (id INT AUTO_INCREMENT PRIMARY KEY, kitId INT, kitNome VARCHAR(255), userId INT, userNome VARCHAR(255), dataRetirada DATETIME DEFAULT CURRENT_TIMESTAMP, prazoDevolucao DATETIME NOT NULL, status ENUM('ativo', 'devolvido') DEFAULT 'ativo')`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS depositos (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(255) NOT NULL, localizacao VARCHAR(255) NOT NULL, conteudo JSON, criadoPor VARCHAR(255), responsavelId INT DEFAULT NULL, responsavelNome VARCHAR(255) DEFAULT NULL)`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS relatorios (id INT AUTO_INCREMENT PRIMARY KEY, depositoId INT, depositoNome VARCHAR(255), autorNome VARCHAR(255), alteracoes TEXT, data DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS caixas (id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(255) NOT NULL, descricao VARCHAR(255), conteudo JSON, criadoPor VARCHAR(255))`);
+        
         console.log("✅ Tabelas sincronizadas com sucesso!");
+
+        // --- AUTO-PATCH PARA BANCOS ANTIGOS ---
+        try {
+            await pool.query("ALTER TABLE users ADD COLUMN nascimento VARCHAR(50)");
+            console.log("🔧 Coluna 'nascimento' adicionada à tabela users automaticamente.");
+        } catch (e) { /* A coluna já existe, segue o jogo */ }
+
         await criarAdminPadrao();
         await criarMateriaisPadrao();
     } catch (err) {
@@ -112,18 +68,32 @@ app.get('/ping', (req, res) => {
 
 // --- MIDDLEWARES ---
 const verificarToken = (req, res, next) => {
-    const token = req.headers['authorization'];
-    if (!token) return res.status(403).json({ error: "Token não fornecido" });
+    const authHeader = req.headers['authorization'];
+
+    if (!authHeader) {
+        return res.status(403).json({ error: "Token não fornecido" });
+    }
+
+    // 👇 ESSA LINHA É A CORREÇÃO
+    const token = authHeader.startsWith('Bearer ')
+        ? authHeader.split(' ')[1]
+        : authHeader;
+
+    if (!token) {
+        return res.status(403).json({ error: "Token não fornecido" });
+    }
 
     jwt.verify(token, JWT_SECRET, async (err, decoded) => {
         if (err) return res.status(401).json({ error: "Token inválido" });
 
         try {
-            // --- VERIFICAÇÃO ATIVA NO BANCO ---
-            const [rows] = await pool.query('SELECT aprovado FROM users WHERE id = ?', [decoded.id]);
+            const [rows] = await pool.query(
+                'SELECT aprovado FROM users WHERE id = ?',
+                [decoded.id]
+            );
+
             const user = rows[0];
 
-            // Se o usuário não existir mais ou não estiver aprovado, bloqueia na hora
             if (!user || !user.aprovado) {
                 return res.status(403).json({ error: "Acesso revogado ou usuário removido." });
             }
@@ -131,6 +101,7 @@ const verificarToken = (req, res, next) => {
             req.userId = decoded.id;
             req.userCargo = decoded.cargo;
             req.userNome = decoded.nome;
+
             next();
         } catch (dbError) {
             res.status(500).json({ error: "Erro na verificação de segurança." });
@@ -385,18 +356,20 @@ app.get('/api/kits', verificarToken, async (req, res) => {
         `;
         const [kits] = await pool.query(query);
 
-        // --- RESGATE AUTOMÁTICO DE ESPECIFICAÇÕES ANTIGAS ---
-        const [itensEstoque] = await pool.query('SELECT id, especificacao FROM itens');
+        // --- RESGATE AUTOMÁTICO DE ESPECIFICAÇÕES ANTIGAS (BUSCA POR NOME) ---
+        const [itensEstoque] = await pool.query('SELECT nome, especificacao FROM itens');
         const mapaSpecs = {};
-        itensEstoque.forEach(i => mapaSpecs[i.id] = i.especificacao);
+        itensEstoque.forEach(i => {
+            if (i.especificacao) mapaSpecs[i.nome] = i.especificacao;
+        });
 
         kits.forEach(kit => {
             if (kit.conteudo) {
                 let conteudoArray = typeof kit.conteudo === 'string' ? JSON.parse(kit.conteudo) : kit.conteudo;
                 conteudoArray = conteudoArray.map(item => {
                     // Se o item não tem especificação salva, puxa do banco de dados principal
-                    if (!item.especificacao && mapaSpecs[item.itemId]) {
-                        item.especificacao = mapaSpecs[item.itemId];
+                    if (!item.especificacao && mapaSpecs[item.nome]) {
+                        item.especificacao = mapaSpecs[item.nome];
                     }
                     return item;
                 });
@@ -605,18 +578,20 @@ app.get('/api/depositos', verificarToken, async (req, res) => {
     try {
         const [depositos] = await pool.query('SELECT * FROM depositos');
 
-        // --- RESGATE AUTOMÁTICO DE ESPECIFICAÇÕES ANTIGAS ---
-        const [itensEstoque] = await pool.query('SELECT id, especificacao FROM itens');
+        // --- RESGATE AUTOMÁTICO DE ESPECIFICAÇÕES ANTIGAS (BUSCA POR NOME) ---
+        const [itensEstoque] = await pool.query('SELECT nome, especificacao FROM itens');
         const mapaSpecs = {};
-        itensEstoque.forEach(i => mapaSpecs[i.id] = i.especificacao);
+        itensEstoque.forEach(i => {
+            if (i.especificacao) mapaSpecs[i.nome] = i.especificacao;
+        });
 
         depositos.forEach(dep => {
             if (dep.conteudo) {
                 let conteudoArray = typeof dep.conteudo === 'string' ? JSON.parse(dep.conteudo) : dep.conteudo;
                 conteudoArray = conteudoArray.map(item => {
                     // Se o item não tem especificação salva, puxa do banco de dados principal
-                    if (!item.especificacao && mapaSpecs[item.itemId]) {
-                        item.especificacao = mapaSpecs[item.itemId];
+                    if (!item.especificacao && mapaSpecs[item.nome]) {
+                        item.especificacao = mapaSpecs[item.nome];
                     }
                     return item;
                 });

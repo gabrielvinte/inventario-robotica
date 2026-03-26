@@ -6,7 +6,6 @@
     <title>Exaris System</title>
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -204,18 +203,18 @@
                 <div id="listaDepositos" class="cards-grid"></div>
             </section>
         </div>
-    <div id="view-caixas" class="hidden fade-in">
+
+        <div id="view-caixas" class="hidden fade-in">
             <section class="list-section">
                 <h3>CAIXAS ORGANIZADORAS</h3>
                 <p class="text-muted" style="margin-bottom: 20px;">
-                    <span class="material-icons" style="font-size: 14px; vertical-align: middle;">auto_awesome</span>
+                    <span class="material-icons" style="font-size: 14px; vertical-align: middle;"></span>
                     O sistema agrupa e exibe automaticamente todos os itens do inventário cuja localização contém a palavra "Caixa".
                 </p>
                 <div id="listaCaixas" class="cards-grid"></div>
             </section>
         </div>
-
-    <div id="admin-screen" class="hidden main-container fade-in">
+    </div> <div id="admin-screen" class="hidden main-container fade-in">
         <header>
             <div class="header-content">
                 <h1>CONTROLE DE ACESSO</h1>
@@ -225,7 +224,18 @@
         <section class="card">
             <h3>AUTORIZAÇÕES PENDENTES</h3>
             <div class="table-container">
-                <table id="tabelaUsers"></table>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Idade</th>
+                            <th>Cargo</th>
+                            <th>Status</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaUsers"></tbody>
+                </table>
             </div>
         </section>
     </div>
@@ -260,14 +270,12 @@
         <div class="card fade-in" style="width: 90%; max-width: 450px; position: relative; border-top: 3px solid #fff; max-height: 85vh; display: flex; flex-direction: column;">
             <button onclick="fecharModalDetalhes()" style="position: absolute; right: 15px; top: 25px; background: transparent; border: none; color: var(--danger); font-size: 1.2rem; cursor: pointer; transition: 0.3s; font-weight: bold;">X</button>
             
-            <h3 id="modalDetalhesNome" style="display:flex; align-items:center; gap:8px; margin-bottom: 5px; padding-right: 20px;">
-                </h3>
+            <h3 id="modalDetalhesNome" style="display:flex; align-items:center; gap:8px; margin-bottom: 5px; padding-right: 20px;"></h3>
             <p id="modalDetalhesInfo" class="text-muted" style="margin-bottom: 15px; font-size: 0.8rem;"></p>
 
             <input type="text" id="buscaModal" placeholder="Pesquisar item..." oninput="filtrarItensModal(this.value)" style="margin-bottom: 15px; width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-deep); color: var(--text-main);">
             
-            <ul id="modalDetalhesLista" class="kit-content-list" style="margin: 0; padding: 0; list-style: none; overflow-y: auto; flex-grow: 1;">
-                </ul>
+            <ul id="modalDetalhesLista" class="kit-content-list" style="margin: 0; padding: 0; list-style: none; overflow-y: auto; flex-grow: 1;"></ul>
         </div>
     </div>
 
