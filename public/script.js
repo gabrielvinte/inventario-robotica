@@ -302,23 +302,32 @@ async function removerMaterialLista(id) {
 
 // --- ESTOQUE (INVENTÁRIO) ---
 
+let controleBuscaItens = 0; // Variável para controlar a ordem das pesquisas
+
 async function carregarItens(termo = '') {
-    const tabela = document.getElementById('tabelaItens');
-    tabela.innerHTML = '';
+    // Incrementa a "senha" a cada vez que você digita uma letra
+    const idBuscaAtual = ++controleBuscaItens; 
+    
     const res = await authFetch(`${API_URL}/itens?busca=${termo}`);
     if (!res.ok) return;
     const itens = await res.json();
+
+    // TRAVA DE CONCORRÊNCIA: Se você já digitou outra letra enquanto o servidor pensava,
+    // essa resposta está atrasada, então nós a ignoramos e não desenhamos nada.
+    if (idBuscaAtual !== controleBuscaItens) return;
+
+    // SÓ LIMPAMOS A TABELA AQUI, quando temos certeza de que é a resposta certa
+    const tabela = document.getElementById('tabelaItens');
+    tabela.innerHTML = ''; 
+    
     const ehStaff = ['admin', 'professor', 'coordenador'].includes(currentUser.cargo);
 
-    // --- NOVA LÓGICA: Oculta o texto "AÇÕES" no cabeçalho da tabela para alunos ---
     const thAcoes = tabela.parentElement.querySelector('thead th:last-child');
     if (thAcoes) {
         thAcoes.style.display = ehStaff ? '' : 'none';
     }
 
     itens.forEach(item => {
-        // Envolvemos o <td> inteiro na verificação do ehStaff
-        // Assim, a coluna nem sequer é desenhada para os alunos
         tabela.innerHTML += `
             <tr>
                 <td><strong>${item.nome}</strong></td>
@@ -328,13 +337,17 @@ async function carregarItens(termo = '') {
                 ${ehStaff ? `
                 <td class="text-right">
                     <button onclick="editarItem('${item.id}', '${item.nome}', '${item.especificacao || ''}', '${item.localizacao}')" class="btn-icon" title="Editar Item"><span class="material-icons" style="font-size: 16px; vertical-align: middle;">edit</span></button>
-                    <button onclick="alterarQtd('${item.id}', ${item.quantidade + 1})" class="btn-icon">+</button>
-                    <button onclick="alterarQtd('${item.id}', ${item.quantidade - 1})" class="btn-icon">-</button>
+                    <button onclick="solicitarAlteracaoQtd('${item.id}', ${item.quantidade}, '${item.nome}', 'add')" class="btn-icon" title="Adicionar Unidades">+</button>
+                    <button onclick="solicitarAlteracaoQtd('${item.id}', ${item.quantidade}, '${item.nome}', 'sub')" class="btn-icon" title="Remover Unidades">-</button>
                     <button onclick="deletarItem('${item.id}')" class="btn-delete">EXCLUIR</button>
                 </td>
                 ` : ''}
             </tr>`;
     });
+    
+    if (itens.length === 0) {
+         tabela.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum componente encontrado no inventário.</td></tr>';
+    }
 }
 // EDITA AS PROPRIEDADES DO ITEM (Nome, Espec ou Local)
 async function editarItem(idItem, nomeAtual, especAtual, localAtual) {
@@ -435,6 +448,28 @@ async function alterarQtd(id, novaQtd) {
     carregarItensParaKit(); // Mantém o dropdown de kits sincronizado
     carregarItensParaDeposito();
     carregarCaixas(); // Atualiza a aba das Caixas
+}
+// NOVA FUNÇÃO: Pergunta a quantidade antes de somar/subtrair
+async function solicitarAlteracaoQtd(idItem, qtdAtual, nomeItem, operacao) {
+    const textoOperacao = operacao === 'add' ? 'ADICIONAR' : 'REMOVER';
+    const input = prompt(`Quantas unidades de "${nomeItem}" você deseja ${textoOperacao}?`, "1");
+
+    if (input === null || input.trim() === "") return; // Se o usuário cancelar
+
+    const qtdInformada = parseInt(input);
+
+    if (isNaN(qtdInformada) || qtdInformada <= 0) {
+        return alert("❌ Por favor, digite um número inteiro maior que zero.");
+    }
+
+    let novaQtdFinal = operacao === 'add' ? (qtdAtual + qtdInformada) : (qtdAtual - qtdInformada);
+
+    if (novaQtdFinal < 0) {
+        return alert(`❌ Operação negada! Você está tentando remover ${qtdInformada}, mas só existem ${qtdAtual} no estoque.`);
+    }
+
+    // Chama a função existente que envia para o servidor
+    alterarQtd(idItem, novaQtdFinal);
 }
 
 async function deletarItem(id) {
@@ -1265,7 +1300,7 @@ async function carregarCaixas() {
                         </h3>
                         <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 20px;">Contém ${cx.conteudo.length} tipo(s) de componente(s)</p>
                     </div>
-                    <button onclick="abrirModalVisualizar('caixa', ${index})" class="btn-primary" style="width: 100%;">ABRIR CAIXA E PESQUISAR</button>
+                    <button onclick="abrirModalVisualizar('caixa', ${index})" class="btn-primary" style="width: 100%;">ABRIR CAIXA</button>
                 </div>
             `;
         });
@@ -1275,7 +1310,7 @@ async function carregarCaixas() {
 }
 
 // ==========================================
-// --- LÓGICA DO MODAL UNIVERSAL COM PESQUISA ---
+// --- LÓGICA DO MODAL UNIVERSAL COM PESQUISA --- 
 // ==========================================
 
 function abrirModalVisualizar(tipo, index) {
