@@ -27,39 +27,12 @@ Sistema Full Stack desenvolvido para gerenciar o estoque de componentes eletrôn
 
 ### Banco de Dados
 
-![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white)
+![TiDB](https://img.shields.io/badge/TiDB-%23E60012.svg?style=for-the-badge&logo=TiDB&logoColor=white)
 
 ### Segurança & Autenticação
 
 ![JWT](https://img.shields.io/badge/JWT-black?style=for-the-badge&logo=JSON%20web%20tokens)
 ![NPM](https://img.shields.io/badge/NPM-%23CB3837.svg?style=for-the-badge&logo=npm&logoColor=white)
-
-## 📦 Como Rodar o Projeto
-
-1. Clone o repositório:
-
-```bash
-git clone https://github.com/gabrielvinte/inventario-robotica
-cd inventario-robotica
-```
-
-2. Instale as dependências:
-
-```bash
-npm install
-```
-
-3. Inicie o Banco de Dados:
-   Certifique-se de que o MongoDB está rodando na sua máquina.
-
-4. Rode o servidor:
-
-```bash
-node server.js
-```
-
-5. Acesse:
-   Abra http://localhost:3000 no seu navegador.
 
 ### 👤 Autor
 
