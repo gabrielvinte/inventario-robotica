@@ -27,7 +27,7 @@ Sistema Full Stack desenvolvido para gerenciar o estoque de componentes eletrôn
 
 ### Banco de Dados
 
-![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white)
+![TiDB]([https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white](https://img.shields.io/badge/TiDB-%23E60012.svg?style=for-the-badge&logo=TiDB&logoColor=white))
 
 ### Segurança & Autenticação
 
